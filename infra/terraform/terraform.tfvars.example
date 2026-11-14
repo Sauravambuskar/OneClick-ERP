@@ -1,0 +1,18 @@
+# Copy to terraform.tfvars and fill in. terraform.tfvars is git-ignored.
+
+aws_region         = "us-east-1"
+github_repo_url    = "https://github.com/<your-user>/oneclick-erp.git"
+github_branch      = "main"
+admin_cidr         = "203.0.113.10/32"   # your public IP + /32  (curl https://checkip.amazonaws.com)
+notification_email = "you@example.com"
+
+# Only for a PRIVATE repo: fine-grained token with "Contents: Read-only".
+# github_token = "github_pat_..."
+
+# Optional: allow GitHub webhooks to reach Jenkins (deploy on every push).
+# Take the "hooks" ranges from https://api.github.com/meta
+# github_webhook_cidrs = ["192.30.252.0/22", "185.199.108.0/22", "140.82.112.0/20", "143.55.64.0/20"]
+
+# release_approvers = "approver"          # Jenkins users allowed to approve production
+# fail_on_severity  = "CRITICAL,HIGH"     # container scan severities that block a release
+# bedrock_model_id  = "anthropic.claude-opus-5-5"

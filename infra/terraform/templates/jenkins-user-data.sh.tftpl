@@ -1,0 +1,50 @@
+#!/bin/bash
+# Jenkins server first boot: install Docker, build the pre-configured Jenkins
+# image (plugins + Configuration-as-Code), then start it. Takes ~5-8 minutes.
+set -euxo pipefail
+
+dnf install -y docker
+systemctl enable --now docker
+
+mkdir -p /opt/jenkins
+cd /opt/jenkins
+echo '${dockerfile_b64}' | base64 -d > Dockerfile
+echo '${plugins_b64}'    | base64 -d > plugins.txt
+echo '${casc_b64}'       | base64 -d > jenkins.yaml
+
+get_secret() {
+  aws ssm get-parameter --region ${aws_region} --name "$1" --with-decryption --query Parameter.Value --output text
+}
+
+umask 077
+cat > jenkins.env <<EOF
+JENKINS_ADMIN_PASSWORD=$(get_secret "${admin_pw_param}")
+JENKINS_APPROVER_PASSWORD=$(get_secret "${approver_pw_param}")
+GITHUB_TOKEN=$(get_secret "${github_token_param}")
+GITHUB_REPO_URL=${github_repo_url}
+GITHUB_BRANCH=${github_branch}
+JENKINS_URL=${jenkins_url}
+AWS_REGION=${aws_region}
+AWS_DEFAULT_REGION=${aws_region}
+ECR_REPO_URL=${ecr_repo_url}
+APP_INSTANCE_ID=${app_instance_id}
+APP_URL=${app_url}
+LOG_GROUP=${log_group}
+SNS_TOPIC_ARN=${sns_topic_arn}
+BEDROCK_MODEL_ID=${bedrock_model_id}
+RELEASE_APPROVERS=${release_approvers}
+FAIL_ON_SEVERITY=${fail_on_severity}
+EOF
+
+docker build -t ${project}-jenkins:latest /opt/jenkins
+docker volume create jenkins_home
+
+docker run -d --name jenkins --restart unless-stopped \
+  -p 8080:8080 \
+  -v jenkins_home:/var/jenkins_home \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  --group-add "$(stat -c %g /var/run/docker.sock)" \
+  --env-file /opt/jenkins/jenkins.env \
+  ${project}-jenkins:latest
+
+echo "Jenkins is starting on port 8080."

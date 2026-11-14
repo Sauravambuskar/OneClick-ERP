@@ -1,0 +1,9 @@
+{
+  "name": "oneclick-erp-ai-report",
+  "private": true,
+  "type": "module",
+  "description": "Writes a short release summary from the pipeline's check results using Claude on Amazon Bedrock.",
+  "dependencies": {
+    "@anthropic-ai/bedrock-sdk": "^1.1.2"
+  }
+}

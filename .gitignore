@@ -1,0 +1,12 @@
+node_modules/
+reports/
+coverage/
+.env
+*.log
+
+# Terraform: state and your real variables contain secrets - never commit them.
+.terraform/
+*.tfstate
+*.tfstate.*
+terraform.tfvars
+crash.log

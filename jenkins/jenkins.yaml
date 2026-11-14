@@ -1,0 +1,91 @@
+# Jenkins Configuration-as-Code.
+# Every ${VAR} is read from the container environment, which Terraform's
+# user-data script fills from SSM Parameter Store and Terraform outputs.
+jenkins:
+  systemMessage: "OneClick ERP CI/CD - configured as code. Changes made in the UI are lost on rebuild."
+  numExecutors: 2
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: "admin"
+          name: "Administrator"
+          password: "${JENKINS_ADMIN_PASSWORD}"
+        - id: "approver"
+          name: "Release Approver"
+          password: "${JENKINS_APPROVER_PASSWORD}"
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+  globalNodeProperties:
+    - envVars:
+        env:
+          - key: AWS_REGION
+            value: "${AWS_REGION}"
+          - key: ECR_REPO_URL
+            value: "${ECR_REPO_URL}"
+          - key: APP_INSTANCE_ID
+            value: "${APP_INSTANCE_ID}"
+          - key: APP_URL
+            value: "${APP_URL}"
+          - key: LOG_GROUP
+            value: "${LOG_GROUP}"
+          - key: SNS_TOPIC_ARN
+            value: "${SNS_TOPIC_ARN}"
+          - key: BEDROCK_MODEL_ID
+            value: "${BEDROCK_MODEL_ID}"
+          - key: RELEASE_APPROVERS
+            value: "${RELEASE_APPROVERS}"
+          - key: FAIL_ON_SEVERITY
+            value: "${FAIL_ON_SEVERITY}"
+          - key: GITHUB_BRANCH
+            value: "${GITHUB_BRANCH}"
+          - key: SONAR_HOST_URL
+            value: "${SONAR_HOST_URL:-}"
+
+unclassified:
+  location:
+    url: "${JENKINS_URL}"
+
+credentials:
+  system:
+    domainCredentials:
+      - credentials:
+          - usernamePassword:
+              scope: GLOBAL
+              id: "github-token"
+              description: "GitHub personal access token (only needed for private repos)"
+              username: "git"
+              password: "${GITHUB_TOKEN}"
+          - string:
+              scope: GLOBAL
+              id: "sonar-token"
+              description: "SonarQube token (only used when SONAR_HOST_URL is set)"
+              secret: "${SONAR_TOKEN:-none}"
+
+jobs:
+  - script: |
+      pipelineJob('oneclick-erp') {
+        description('One click: quality gate -> build -> ECR -> container gate -> AI report -> approval -> deploy to EC2')
+        properties {
+          githubProjectUrl(System.getenv('GITHUB_REPO_URL'))
+          pipelineTriggers { triggers { githubPush() } }
+        }
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote {
+                  url(System.getenv('GITHUB_REPO_URL'))
+                  if (System.getenv('GITHUB_TOKEN') && System.getenv('GITHUB_TOKEN') != 'none') {
+                    credentials('github-token')
+                  }
+                }
+                branch('*/' + System.getenv('GITHUB_BRANCH'))
+              }
+            }
+            scriptPath('Jenkinsfile')
+            lightweight(true)
+          }
+        }
+      }

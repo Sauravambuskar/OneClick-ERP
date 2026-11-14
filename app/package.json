@@ -1,0 +1,35 @@
+{
+  "name": "oneclick-erp",
+  "version": "1.0.0",
+  "description": "A deliberately small ERP (products, customers, sales orders, inventory) on Postgres, built to demonstrate one-click CI/CD to AWS.",
+  "type": "module",
+  "main": "src/server.js",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "lint": "eslint .",
+    "typecheck": "tsc -p jsconfig.json",
+    "test": "node --test",
+    "migrations:check": "node scripts/check-migrations.js",
+    "sast": "eslint --config eslint.security.config.js src",
+    "sca": "npm audit --omit=dev --audit-level=high"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "pg": "^8.13.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.0",
+    "@types/pg": "^8.11.0",
+    "eslint": "^10.15.0",
+    "eslint-plugin-security": "^4.2.1",
+    "globals": "^17.14.0",
+    "supertest": "^7.0.0",
+    "typescript": "^5.7.0"
+  }
+}

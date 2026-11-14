@@ -64,7 +64,7 @@ variable "bedrock_model_id" {
 
 variable "jenkins_instance_type" {
   type    = string
-  default = "t3.medium"
+  default = "t3.small"
 }
 
 variable "app_instance_type" {

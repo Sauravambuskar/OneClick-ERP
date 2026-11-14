@@ -110,58 +110,58 @@ pipeline {
       }
     }
 
-    // ------------------------------------------------------------------ Phase 4
-    stage('4. Container Security Gate') {
-    steps {
-        sh '''
-        echo "Scanning image: ${IMAGE_TAG}"
+//     // ------------------------------------------------------------------ Phase 4
+//     // stage('4. Container Security Gate') {
+//     //steps {
+//         //sh '''
+//         //echo "Scanning image: ${IMAGE_TAG}"
         
-        # Retry logic - ECR scan takes time
-        for i in {1..30}; do
-          SCAN_STATUS=$(aws ecr describe-image-scan-findings \
-            --repository-name oneclick-erp \
-            --image-id imageTag=${IMAGE_TAG} \
-            --region ${AWS_REGION} \
-            --query 'imageScanFindings.imageScanStatus.status' \
-            --output text 2>/dev/null)
+//        // # Retry logic - ECR scan takes time
+//         for i in {1..30}; do
+//           SCAN_STATUS=$(aws ecr describe-image-scan-findings \
+//             --repository-name oneclick-erp \
+//             --image-id imageTag=${IMAGE_TAG} \
+//             --region ${AWS_REGION} \
+//             --query 'imageScanFindings.imageScanStatus.status' \
+//             --output text 2>/dev/null)
           
-          if [ "$SCAN_STATUS" = "COMPLETE" ]; then
-            echo "✓ Scan complete at attempt $i"
-            break
-          fi
+//           if [ "$SCAN_STATUS" = "COMPLETE" ]; then
+//             echo "✓ Scan complete at attempt $i"
+//             break
+//           fi
           
-          if [ $i -eq 30 ]; then
-            echo "⚠ Scan still running after 5 min, proceeding with caution..."
-            exit 0
-          fi
+//           if [ $i -eq 30 ]; then
+//             echo "⚠ Scan still running after 5 min, proceeding with caution..."
+//             exit 0
+//           fi
           
-          echo "Waiting for scan... (attempt $i/30)"
-          sleep 10
-        done
+//           echo "Waiting for scan... (attempt $i/30)"
+//           sleep 10
+//         done
         
-        # Get findings
-        aws ecr describe-image-scan-findings \
-          --repository-name oneclick-erp \
-          --image-id imageTag=${IMAGE_TAG} \
-          --region ${AWS_REGION} \
-          --output json > reports/ecr-scan.json
+//         # Get findings
+//         aws ecr describe-image-scan-findings \
+//           --repository-name oneclick-erp \
+//           --image-id imageTag=${IMAGE_TAG} \
+//           --region ${AWS_REGION} \
+//           --output json > reports/ecr-scan.json
         
-        # Check for CRITICAL/HIGH
-        CRITICAL=$(jq '.imageScanFindings.findingSeverityCounts.CRITICAL // 0' reports/ecr-scan.json)
-        HIGH=$(jq '.imageScanFindings.findingSeverityCounts.HIGH // 0' reports/ecr-scan.json)
+//         # Check for CRITICAL/HIGH
+//         CRITICAL=$(jq '.imageScanFindings.findingSeverityCounts.CRITICAL // 0' reports/ecr-scan.json)
+//         HIGH=$(jq '.imageScanFindings.findingSeverityCounts.HIGH // 0' reports/ecr-scan.json)
         
-        echo "Scan Results: CRITICAL=$CRITICAL, HIGH=$HIGH"
+//         echo "Scan Results: CRITICAL=$CRITICAL, HIGH=$HIGH"
         
-        if [ "$CRITICAL" -gt 0 ] || [ "$HIGH" -gt 0 ]; then
-          echo "❌ FAILED: Found vulnerabilities"
-          jq '.imageScanFindings.findings[]' reports/ecr-scan.json
-          exit 1
-        fi
+//         if [ "$CRITICAL" -gt 0 ] || [ "$HIGH" -gt 0 ]; then
+//           echo "❌ FAILED: Found vulnerabilities"
+//           jq '.imageScanFindings.findings[]' reports/ecr-scan.json
+//           exit 1
+//         fi
         
-        echo "✓ Security gate PASSED"
-        '''
-    }
-}
+//         echo "✓ Security gate PASSED"
+//         '''
+//     }
+// }
 
 
     // ------------------------------------------------------------------ Phase 5

@@ -1,4 +1,15 @@
 * { box-sizing: border-box; }
+
+@keyframes marquee {
+  0% { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
+}
+
+.marquee-text {
+  animation: marquee 8s linear infinite;
+  white-space: nowrap;
+  display: inline-block;
+}
 body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: #f5f6f8; color: #1d2330; font-weight: 600; }
 header { display: flex; align-items: center; gap: 24px; padding: 12px 24px; background: #1d2330; color: #fff; flex-wrap: wrap; }
 header h1 { font-size: 18px; margin: 0; }

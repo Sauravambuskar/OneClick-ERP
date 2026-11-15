@@ -24,6 +24,6 @@ RUN apt-get update \
 USER jenkins
 ENV JAVA_OPTS="-Djenkins.install.runSetupWizard=false" \
     CASC_JENKINS_CONFIG=/usr/share/jenkins/ref/casc/jenkins.yaml
-COPY plugins-gcp.txt /usr/share/jenkins/ref/plugins.txt
+COPY plugins.txt /usr/share/jenkins/ref/plugins.txt
 RUN jenkins-plugin-cli --plugin-file /usr/share/jenkins/ref/plugins.txt
-COPY jenkins-gcp.yaml /usr/share/jenkins/ref/casc/jenkins.yaml
+COPY jenkins.yaml /usr/share/jenkins/ref/casc/jenkins.yaml

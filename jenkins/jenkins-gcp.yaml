@@ -1,0 +1,102 @@
+# Jenkins Configuration-as-Code for GCP deployment.
+# Every ${VAR} is read from the container environment (filled by Terraform startup script).
+jenkins:
+  systemMessage: "OneClick ERP CI/CD (GCP) — configured as code. UI changes are lost on rebuild."
+  numExecutors: 2
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: "admin"
+          name: "Administrator"
+          password: "${JENKINS_ADMIN_PASSWORD}"
+        - id: "approver"
+          name: "Release Approver"
+          password: "${JENKINS_APPROVER_PASSWORD}"
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+  globalNodeProperties:
+    - envVars:
+        env:
+          - key: GCP_PROJECT
+            value: "${GCP_PROJECT}"
+          - key: GAR_REGION
+            value: "${GAR_REGION}"
+          - key: GAR_REPO_URL
+            value: "${GAR_REPO_URL}"
+          - key: APP_VM
+            value: "${APP_VM}"
+          - key: ZONE
+            value: "${ZONE}"
+          - key: APP_URL
+            value: "${APP_URL}"
+          - key: VERTEX_MODEL_ID
+            value: "${VERTEX_MODEL_ID}"
+          - key: VERTEX_REGION
+            value: "${VERTEX_REGION}"
+          - key: NOTIFICATION_EMAIL
+            value: "${NOTIFICATION_EMAIL}"
+          - key: RELEASE_APPROVERS
+            value: "${RELEASE_APPROVERS}"
+          - key: FAIL_ON_SEVERITY
+            value: "${FAIL_ON_SEVERITY}"
+          - key: GITHUB_BRANCH
+            value: "${GITHUB_BRANCH}"
+          - key: SONAR_HOST_URL
+            value: "${SONAR_HOST_URL:-}"
+
+unclassified:
+  location:
+    url: "${JENKINS_URL}"
+  mailer:
+    smtpHost: "${SMTP_HOST}"
+    smtpPort: "${SMTP_PORT}"
+    authentication:
+      username: "${SMTP_USER}"
+      password: "${SMTP_PASSWORD}"
+    useTls: true
+    adminAddress: "${SMTP_USER}"
+
+credentials:
+  system:
+    domainCredentials:
+      - credentials:
+          - usernamePassword:
+              scope: GLOBAL
+              id: "github-token"
+              description: "GitHub personal access token"
+              username: "git"
+              password: "${GITHUB_TOKEN}"
+          - string:
+              scope: GLOBAL
+              id: "sonar-token"
+              description: "SonarQube token (only used when SONAR_HOST_URL is set)"
+              secret: "${SONAR_TOKEN:-none}"
+
+jobs:
+  - script: |
+      pipelineJob('oneclick-erp-gcp') {
+        description('GCP: quality gate -> build -> GAR -> container scan -> AI report -> approval -> deploy')
+        properties {
+          githubProjectUrl(System.getenv('GITHUB_REPO_URL'))
+          pipelineTriggers { triggers { githubPush() } }
+        }
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote {
+                  url(System.getenv('GITHUB_REPO_URL'))
+                  if (System.getenv('GITHUB_TOKEN') && System.getenv('GITHUB_TOKEN') != 'none') {
+                    credentials('github-token')
+                  }
+                }
+                branch('*/' + System.getenv('GITHUB_BRANCH'))
+              }
+            }
+            scriptPath('Jenkinsfile.gcp')
+            lightweight(true)
+          }
+        }
+      }

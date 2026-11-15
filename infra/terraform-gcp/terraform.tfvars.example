@@ -1,0 +1,38 @@
+# Copy this file to terraform.tfvars and fill in the values.
+# terraform.tfvars is git-ignored — never commit real secrets.
+
+# --- Required ---
+project_id      = "oneclick-erp-123456"           # your GCP project ID
+admin_cidr      = "203.0.113.10/32"               # your public IP (curl ifconfig.me)
+github_repo_url = "https://github.com/YourUser/OneClick-ERP.git"
+notification_email = "you@example.com"
+
+# --- GitHub (leave empty for public repos) ---
+# github_token = "ghp_xxxxxxxxxxxx"
+
+# --- SMTP for release emails (GCP blocks port 25 — use port 587) ---
+# For Gmail: generate an App Password at myaccount.google.com/apppasswords
+smtp_host     = "smtp.gmail.com"
+smtp_port     = 587
+smtp_user     = "you@gmail.com"
+smtp_password = "xxxx xxxx xxxx xxxx"             # 16-char Gmail app password
+
+# --- GCP region/zone ---
+region = "us-central1"
+zone   = "us-central1-a"
+
+# --- Vertex AI (Claude) ---
+vertex_model_id = "claude-opus-4-5"
+vertex_region   = "us-east5"                      # Claude available in us-east5 and europe-west1
+
+# --- GitHub webhook ranges (same as AWS side) ---
+github_webhook_cidrs = [
+  "192.30.252.0/22",
+  "185.199.108.0/22",
+  "140.82.112.0/20",
+  "143.55.64.0/20",
+]
+
+# --- VM sizes (smaller = cheaper; Jenkins needs e2-medium for builds) ---
+jenkins_machine_type = "e2-medium"
+app_machine_type     = "e2-small"

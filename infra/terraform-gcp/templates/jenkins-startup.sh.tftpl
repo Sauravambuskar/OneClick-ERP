@@ -1,0 +1,66 @@
+#!/bin/bash
+# Jenkins VM first boot — installs Docker, builds the Jenkins image, starts it.
+# Runs once automatically when the VM is created by Terraform.
+set -euxo pipefail
+
+apt-get update
+apt-get install -y --no-install-recommends docker.io git curl openssh-client
+
+# Docker Compose v2 plugin
+COMPOSE_VERSION=v2.32.4
+mkdir -p /usr/local/lib/docker/cli-plugins
+curl -fsSL "https://github.com/docker/compose/releases/download/$COMPOSE_VERSION/docker-compose-linux-x86_64" \
+  -o /usr/local/lib/docker/cli-plugins/docker-compose
+chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+
+systemctl enable --now docker
+
+mkdir -p /opt/jenkins
+cd /opt/jenkins
+echo '${dockerfile_b64}' | base64 -d > Dockerfile
+echo '${plugins_b64}'    | base64 -d > plugins.txt
+echo '${casc_b64}'       | base64 -d > jenkins.yaml
+
+# gcloud is pre-installed on GCP Debian 12 images
+get_secret() {
+  gcloud secrets versions access latest --secret="$1" --project="${project_id}"
+}
+
+umask 077
+cat > jenkins.env <<EOF
+JENKINS_ADMIN_PASSWORD=$$(get_secret "${admin_pw_secret}")
+JENKINS_APPROVER_PASSWORD=$$(get_secret "${approver_pw_secret}")
+GITHUB_TOKEN=$$(get_secret "${github_token_secret}")
+SMTP_PASSWORD=$$(get_secret "${smtp_password_secret}")
+GITHUB_REPO_URL=${github_repo_url}
+GITHUB_BRANCH=${github_branch}
+JENKINS_URL=${jenkins_url}
+GCP_PROJECT=${project_id}
+GAR_REGION=${gar_region}
+GAR_REPO_URL=${image_repo}
+APP_VM=${app_vm}
+ZONE=${zone}
+APP_URL=${app_url}
+VERTEX_MODEL_ID=${vertex_model_id}
+VERTEX_REGION=${vertex_region}
+NOTIFICATION_EMAIL=${notification_email}
+SMTP_HOST=${smtp_host}
+SMTP_PORT=${smtp_port}
+SMTP_USER=${smtp_user}
+RELEASE_APPROVERS=${release_approvers}
+FAIL_ON_SEVERITY=${fail_on_severity}
+SONAR_HOST_URL=
+EOF
+
+docker build -t ${project_name}-jenkins:latest /opt/jenkins
+docker volume create jenkins_home
+
+docker run -d --name jenkins --restart unless-stopped \
+  -p 8080:8080 \
+  -v jenkins_home:/var/jenkins_home \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  --group-add "$$(stat -c %g /var/run/docker.sock)" \
+  --env-file /opt/jenkins/jenkins.env \
+  ${project_name}-jenkins:latest
+
+echo "Jenkins is starting on port 8080. Check: docker logs jenkins"

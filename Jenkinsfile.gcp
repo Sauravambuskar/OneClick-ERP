@@ -1,0 +1,249 @@
+// OneClick ERP — GCP CI/CD pipeline
+//
+// Same six phases as the AWS pipeline but using GCP-native services:
+//   1. Source              - checkout from GitHub
+//   2. Code Quality Gate   - lint, type check, unit tests, migration safety, SAST, SCA
+//   3. Build & Push        - docker build, push to Artifact Registry (GAR)
+//   4. Container Gate      - Artifact Analysis vulnerability scan, blocks on CRITICAL/HIGH
+//   5. Report & Approval   - AI summary (Vertex AI Claude) + email, then named human approves
+//   6. Deploy & Verify     - gcloud IAP SSH deploys to the app VM, smoke test, auto-rollback
+//
+// Environment values (GCP_PROJECT, GAR_REGION, APP_VM, ...) are injected by
+// Terraform + jenkins-gcp.yaml; nothing is hard-coded here.
+
+pipeline {
+  agent any
+
+  options {
+    timestamps()
+    disableConcurrentBuilds()
+    buildDiscarder(logRotator(numToKeepStr: '20'))
+    timeout(time: 90, unit: 'MINUTES')
+  }
+
+  environment {
+    REPORT_DIR = "${WORKSPACE}/reports"
+  }
+
+  stages {
+
+    // ------------------------------------------------------------------ Phase 1
+    stage('1. Source') {
+      steps {
+        checkout scm
+        script {
+          env.GIT_SHORT    = sh(script: 'git rev-parse --short=8 HEAD', returnStdout: true).trim()
+          env.IMAGE_TAG    = "${env.BUILD_NUMBER}-${env.GIT_SHORT}"
+          env.IMAGE_URI    = "${env.GAR_REPO_URL}:${env.IMAGE_TAG}"
+          env.COMMIT_MSG   = sh(script: 'git log -1 --pretty=%s', returnStdout: true).trim()
+          env.COMMIT_AUTHOR = sh(script: 'git log -1 --pretty=%an', returnStdout: true).trim()
+          currentBuild.displayName = "#${env.BUILD_NUMBER} ${env.GIT_SHORT}"
+        }
+        sh 'rm -rf "$REPORT_DIR" && mkdir -p "$REPORT_DIR"'
+      }
+    }
+
+    // ------------------------------------------------------------------ Phase 2
+    stage('2. Code Quality Gate') {
+      stages {
+        stage('Install') {
+          steps { dir('app') { sh 'npm ci --no-fund --no-audit' } }
+        }
+        stage('Lint') {
+          steps { dir('app') { sh '#!/bin/bash\nset -eo pipefail\nnpm run -s lint 2>&1 | tee "$REPORT_DIR/lint.txt"' } }
+        }
+        stage('Type Check') {
+          steps { dir('app') { sh '#!/bin/bash\nset -eo pipefail\nnpm run -s typecheck 2>&1 | tee "$REPORT_DIR/typecheck.txt"' } }
+        }
+        stage('Unit Tests') {
+          steps { dir('app') { sh '#!/bin/bash\nset -eo pipefail\nnpm test 2>&1 | tee "$REPORT_DIR/tests.txt"' } }
+        }
+        stage('Migration Safety') {
+          steps {
+            dir('app') {
+              sh '''#!/bin/bash
+          set -eo pipefail
+                git fetch --no-tags origin "+refs/heads/${GITHUB_BRANCH}:refs/remotes/origin/${GITHUB_BRANCH}" || true
+                export MIGRATION_BASE_REF="${GIT_PREVIOUS_SUCCESSFUL_COMMIT:-origin/${GITHUB_BRANCH}}"
+                npm run -s migrations:check 2>&1 | tee "$REPORT_DIR/migrations.txt"
+              '''
+            }
+          }
+        }
+        stage('SAST') {
+          steps { dir('app') { sh '#!/bin/bash\nset -eo pipefail\nnpm run -s sast 2>&1 | tee "$REPORT_DIR/sast.txt"' } }
+        }
+        stage('SCA (dependencies)') {
+          steps { dir('app') { sh '#!/bin/bash\nset -eo pipefail\nnpm run -s sca 2>&1 | tee "$REPORT_DIR/sca.txt"' } }
+        }
+        stage('SonarQube (optional)') {
+          when { expression { return env.SONAR_HOST_URL?.trim() } }
+          steps {
+            withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
+              dir('app') {
+                sh '''#!/bin/bash
+          set -eo pipefail
+                  npx --yes @sonar/scan \
+                    -Dsonar.host.url="$SONAR_HOST_URL" -Dsonar.token="$SONAR_TOKEN" \
+                    -Dsonar.projectKey=oneclick-erp -Dsonar.sources=src -Dsonar.tests=test \
+                    -Dsonar.qualitygate.wait=true 2>&1 | tee "$REPORT_DIR/sonarqube.txt"
+                '''
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // ------------------------------------------------------------------ Phase 3
+    stage('3. Build & Push') {
+      steps {
+        sh '''#!/bin/bash
+          set -eo pipefail
+          GAR_HOST="${GAR_REGION}-docker.pkg.dev"
+          gcloud auth configure-docker "${GAR_HOST}" --quiet
+          docker build --pull --build-arg APP_VERSION="$IMAGE_TAG" -t "$IMAGE_URI" app
+          docker push "$IMAGE_URI"
+          echo "Pushed $IMAGE_URI" | tee "$REPORT_DIR/image.txt"
+        '''
+      }
+    }
+
+    // ------------------------------------------------------------------ Phase 4
+    stage('4. Container Security Gate') {
+      steps {
+        sh '''#!/bin/bash
+          set -eo pipefail
+          echo "Scanning image: $IMAGE_URI"
+
+          # Artifact Analysis scans automatically on push; wait up to 10 min for it to finish.
+          for i in $(seq 1 60); do
+            SCAN=$(gcloud artifacts docker images describe "$IMAGE_URI" \
+              --show-package-vulnerability --format=json 2>/dev/null || echo '{}')
+
+            # vulnerability_occurrence_count is present (even if 0) once the scan finishes.
+            COUNT=$(echo "$SCAN" | jq '.image_summary.vulnerability_occurrence_count // -1')
+            if [ "$COUNT" -ge 0 ]; then
+              echo "Scan complete: $COUNT vulnerability occurrences found."
+              break
+            fi
+
+            if [ "$i" -eq 60 ]; then
+              echo "Scan did not finish within 10 minutes — blocking release."
+              exit 1
+            fi
+            echo "Scan pending ($i/60)..."; sleep 10
+          done
+
+          echo "$SCAN" > "$REPORT_DIR/gar-scan.json"
+
+          # Count CRITICAL and HIGH by array length in .package_vulnerability_summary.vulnerabilities
+          CRITICAL=$(echo "$SCAN" | jq '[.package_vulnerability_summary.vulnerabilities.CRITICAL // [] | length][0]')
+          HIGH=$(echo "$SCAN" | jq '[.package_vulnerability_summary.vulnerabilities.HIGH // [] | length][0]')
+
+          echo "Vulnerabilities: CRITICAL=$CRITICAL HIGH=$HIGH"
+
+          if [ "$CRITICAL" -gt 0 ] || [ "$HIGH" -gt 0 ]; then
+            echo "FAILED: image has CRITICAL=$CRITICAL HIGH=$HIGH vulnerabilities."
+            echo "$SCAN" | jq '.package_vulnerability_summary.vulnerabilities | to_entries[] | select(.key=="CRITICAL" or .key=="HIGH") | .value[] | {id: .vulnerability.vulnerability_id, pkg: .vulnerability.package_issue[0].affected_package}' || true
+            exit 1
+          fi
+
+          echo "Security gate PASSED."
+        '''
+      }
+    }
+
+    // ------------------------------------------------------------------ Phase 5
+    stage('5a. AI-Assisted Report') {
+      steps {
+        sh '''#!/bin/bash
+          set -e
+          cd ci/ai-report-gcp
+          npm ci --no-fund --no-audit --omit=dev >/dev/null
+          node report.mjs "$REPORT_DIR" > "$REPORT_DIR/release-summary.md" || true
+          cat "$REPORT_DIR/release-summary.md"
+        '''
+        script {
+          def summary = readFile("${env.REPORT_DIR}/release-summary.md")
+          mail to: env.NOTIFICATION_EMAIL,
+               subject: "[OneClick ERP] Build #${env.BUILD_NUMBER} (${env.IMAGE_TAG}) waiting for approval",
+               body: summary + "\n\nApprove or reject: ${env.BUILD_URL}input/"
+        }
+        archiveArtifacts artifacts: 'reports/**', allowEmptyArchive: true
+      }
+    }
+
+    stage('5b. Manual Approval') {
+      steps {
+        timeout(time: 24, unit: 'HOURS') {
+          input message: "Deploy ${env.IMAGE_TAG} to production?",
+                ok: 'Approve & Deploy',
+                submitter: "${env.RELEASE_APPROVERS}",
+                submitterParameter: 'APPROVED_BY'
+        }
+      }
+    }
+
+    // ------------------------------------------------------------------ Phase 6
+    stage('6. Deploy to App VM') {
+      steps {
+        sh '''#!/bin/bash
+          set -eo pipefail
+
+          # Retrieve the deploy SSH key from Secret Manager
+          KEYFILE=$(mktemp)
+          gcloud secrets versions access latest \
+            --secret="${GCP_PROJECT}-deploy-ssh-key" \
+            --project="$GCP_PROJECT" > "$KEYFILE"
+          chmod 600 "$KEYFILE"
+
+          # SSH via IAP tunnel — port 22 is never open to the public internet
+          gcloud compute ssh "deployer@$APP_VM" \
+            --zone="$ZONE" \
+            --project="$GCP_PROJECT" \
+            --tunnel-through-iap \
+            --ssh-flag="-i $KEYFILE -o StrictHostKeyChecking=no -o BatchMode=yes" \
+            --command="sudo /opt/erp/deploy.sh $IMAGE_URI" \
+            --quiet 2>&1 | tee "$REPORT_DIR/deploy.txt"
+
+          rm -f "$KEYFILE"
+        '''
+      }
+    }
+
+    stage('6b. Smoke Test') {
+      steps {
+        sh '''#!/bin/bash
+          set -eo pipefail
+          for i in $(seq 1 12); do
+            BODY=$(curl -fsS --max-time 5 "$APP_URL/health" || true)
+            echo "$BODY"
+            if echo "$BODY" | jq -e --arg v "$IMAGE_TAG" '.status == "ok" and .version == $v' >/dev/null 2>&1; then
+              echo "Smoke test PASSED: $APP_URL is serving $IMAGE_TAG"; exit 0
+            fi
+            sleep 5
+          done
+          echo "Smoke test FAILED"; exit 1
+        '''
+      }
+    }
+  }
+
+  post {
+    success {
+      mail to: env.NOTIFICATION_EMAIL,
+           subject: "[OneClick ERP] Deployed ${env.IMAGE_TAG}",
+           body: "Build #${env.BUILD_NUMBER} (${env.IMAGE_TAG}) is live at ${env.APP_URL}\nCommit: ${env.GIT_SHORT} — ${env.COMMIT_MSG} (${env.COMMIT_AUTHOR})\nLogs: https://console.cloud.google.com/logs/query?project=${env.GCP_PROJECT}\nBuild: ${env.BUILD_URL}"
+    }
+    failure {
+      mail to: env.NOTIFICATION_EMAIL,
+           subject: "[OneClick ERP] Build #${env.BUILD_NUMBER} FAILED",
+           body: "Build #${env.BUILD_NUMBER} (${env.IMAGE_TAG ?: 'n/a'}) failed.\nConsole: ${env.BUILD_URL}console"
+    }
+    always {
+      archiveArtifacts artifacts: 'reports/**', allowEmptyArchive: true
+      sh 'docker image rm "$IMAGE_URI" >/dev/null 2>&1 || true'
+    }
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "name": "oneclick-erp-ai-report-gcp",
+  "private": true,
+  "type": "module",
+  "description": "Writes a short release summary using Claude on Vertex AI (GCP).",
+  "dependencies": {
+    "@anthropic-ai/vertex-sdk": "^0.6.0"
+  }
+}

@@ -1,0 +1,46 @@
+#!/bin/bash
+# App VM first boot — installs Docker, creates the deployer user, starts PostgreSQL.
+# The app container itself is started by the first pipeline deploy.
+set -euxo pipefail
+
+apt-get update
+apt-get install -y --no-install-recommends docker.io curl sudo
+
+# Docker Compose v2 plugin
+COMPOSE_VERSION=v2.32.4
+mkdir -p /usr/local/lib/docker/cli-plugins
+curl -fsSL "https://github.com/docker/compose/releases/download/$COMPOSE_VERSION/docker-compose-linux-x86_64" \
+  -o /usr/local/lib/docker/cli-plugins/docker-compose
+chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+
+systemctl enable --now docker
+
+# deployer user: used by Jenkins for deploys via IAP SSH.
+# The SSH public key was written to metadata ssh-keys by Terraform.
+useradd -m -s /bin/bash deployer
+usermod -aG docker deployer
+# Allow deployer to run only the deploy script as root — no full sudo
+echo "deployer ALL=(root) NOPASSWD: /opt/erp/deploy.sh" > /etc/sudoers.d/deployer
+chmod 440 /etc/sudoers.d/deployer
+
+mkdir -p /opt/erp
+cd /opt/erp
+echo '${compose_b64}' | base64 -d > docker-compose.yml
+echo '${deploy_b64}'  | base64 -d > deploy.sh
+chmod 750 deploy.sh
+chown root:docker deploy.sh
+
+# Read DB password from Secret Manager (gcloud pre-installed on GCP Debian images)
+DB_PASSWORD=$$(gcloud secrets versions access latest --secret="${db_secret}" --project="${project_id}")
+
+umask 077
+cat > .env <<EOF
+GCP_PROJECT=${project_id}
+GAR_REGION=${gar_region}
+LOG_NAME=${log_name}
+DB_PASSWORD=$$DB_PASSWORD
+APP_IMAGE=
+EOF
+
+docker compose up -d db
+echo "App VM ready. Waiting for the first deploy from Jenkins."

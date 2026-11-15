@@ -1,0 +1,41 @@
+# Runs on the GCP App VM at /opt/erp. Values come from /opt/erp/.env
+# (written at boot; APP_IMAGE is updated by deploy.sh on every release).
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: erp
+      POSTGRES_USER: erp
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U erp -d erp"]
+      interval: 5s
+      retries: 20
+    logging:
+      driver: gcplogs
+      options:
+        gcp-project: "${GCP_PROJECT}"
+        gcp-log-name: "${LOG_NAME}-postgres"
+
+  app:
+    image: ${APP_IMAGE:-none}
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgres://erp:${DB_PASSWORD}@db:5432/erp
+      PORT: "3000"
+    ports:
+      - "80:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+    logging:
+      driver: gcplogs
+      options:
+        gcp-project: "${GCP_PROJECT}"
+        gcp-log-name: "${LOG_NAME}-app"
+
+volumes:
+  pgdata:

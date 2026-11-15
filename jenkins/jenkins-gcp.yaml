@@ -56,7 +56,6 @@ unclassified:
       username: "${SMTP_USER}"
       password: "${SMTP_PASSWORD}"
     useTls: true
-    adminAddress: "${SMTP_USER}"
 
 credentials:
   system:

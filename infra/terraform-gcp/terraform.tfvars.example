@@ -17,6 +17,23 @@ smtp_port     = 587
 smtp_user     = "you@gmail.com"
 smtp_password = "xxxx xxxx xxxx xxxx"             # 16-char Gmail app password
 
+# --- HTTPS (optional but recommended) ---
+# Set app_domain and Caddy gets a free Let's Encrypt certificate automatically,
+# serves HTTPS on 443 and redirects HTTP to it.
+#
+# Before running apply, point the domain's A record at the app's static IP.
+# Get the IP from `terraform output app_ip` after the first apply, add the DNS
+# record, then set app_domain here and apply again.
+#
+# Leave it empty to serve plain HTTP on the IP (fine for a demo, not for real use).
+# app_domain = "erp.example.com"
+# acme_email = "you@example.com"          # defaults to notification_email
+
+# --- Database backups ---
+# A daily pg_dump is uploaded to gs://<project_id>-db-backups and deleted after
+# this many days. Restore with: sudo /opt/erp/db-restore.sh
+backup_retention_days = 30
+
 # --- GCP region/zone ---
 region = "us-central1"
 zone   = "us-central1-a"

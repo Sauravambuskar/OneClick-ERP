@@ -1,0 +1,29 @@
+# Caddy fronts the app on the App VM.
+#
+# SITE_ADDRESS comes from /opt/erp/.env:
+#   - a domain name (erp.example.com) -> Caddy fetches a Let's Encrypt
+#     certificate on first request, serves HTTPS on 443 and redirects 80 -> 443.
+#   - ":80" (no domain configured) -> plain HTTP, so a bare-IP install still works.
+#
+# Certificates live in the caddy_data volume, so they survive a redeploy and
+# Caddy does not re-request them from Let's Encrypt (which rate-limits).
+
+{
+	email {$ACME_EMAIL}
+}
+
+{$SITE_ADDRESS} {
+	encode zstd gzip
+
+	# Strip the headers that identify the stack to the public internet.
+	header {
+		-Server
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+	}
+
+	reverse_proxy app:3000 {
+		health_uri /health
+		health_interval 10s
+		health_timeout 3s
+	}
+}

@@ -1,5 +1,6 @@
 #!/bin/bash
-# App VM first boot — installs Docker, creates the deployer user, starts PostgreSQL.
+# App VM first boot — installs Docker, creates the deployer user, starts
+# PostgreSQL and Caddy, and schedules the daily database backup.
 # The app container itself is started by the first pipeline deploy.
 set -euxo pipefail
 
@@ -25,10 +26,20 @@ chmod 440 /etc/sudoers.d/deployer
 
 mkdir -p /opt/erp
 cd /opt/erp
-echo '${compose_b64}' | base64 -d > docker-compose.yml
-echo '${deploy_b64}'  | base64 -d > deploy.sh
-chmod 750 deploy.sh
-chown root:docker deploy.sh
+echo '${compose_b64}'  | base64 -d > docker-compose.yml
+echo '${deploy_b64}'   | base64 -d > deploy.sh
+echo '${caddyfile_b64}'| base64 -d > Caddyfile
+echo '${backup_b64}'   | base64 -d > db-backup.sh
+echo '${restore_b64}'  | base64 -d > db-restore.sh
+chmod 750 deploy.sh db-backup.sh db-restore.sh
+chown root:docker deploy.sh db-backup.sh db-restore.sh
+
+# Caddy's `email` directive needs an argument. With no ACME contact configured
+# the placeholder would expand to nothing and Caddy would refuse to start, so
+# drop the line instead — Let's Encrypt accepts registration without an email.
+if [ -z "${acme_email}" ]; then
+  sed -i '/email {$ACME_EMAIL}/d' Caddyfile
+fi
 
 # Read DB password from Secret Manager (gcloud pre-installed on GCP Debian images)
 DB_PASSWORD=$$(gcloud secrets versions access latest --secret="${db_secret}" --project="${project_id}")
@@ -38,9 +49,44 @@ cat > .env <<EOF
 GCP_PROJECT=${project_id}
 GAR_REGION=${gar_region}
 LOG_NAME=${log_name}
+SITE_ADDRESS=${site_address}
+ACME_EMAIL=${acme_email}
+BACKUP_BUCKET=${backup_bucket}
 DB_PASSWORD=$$DB_PASSWORD
 APP_IMAGE=
 EOF
 
-docker compose up -d db
+# ── Daily database backup ────────────────────────────────────────────────────
+cat > /etc/systemd/system/erp-db-backup.service <<'EOF'
+[Unit]
+Description=Back up the ERP database to Cloud Storage
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/erp
+ExecStart=/opt/erp/db-backup.sh
+EOF
+
+cat > /etc/systemd/system/erp-db-backup.timer <<'EOF'
+[Unit]
+Description=Daily ERP database backup
+
+[Timer]
+OnCalendar=*-*-* 02:00:00 UTC
+# Run on next boot if the VM was off at 02:00.
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target
+EOF
+
+systemctl daemon-reload
+systemctl enable --now erp-db-backup.timer
+
+# Bring up the database and the TLS terminator. The app container follows on
+# the first deploy; Caddy answers 502 until then, which is expected.
+docker compose up -d db caddy
 echo "App VM ready. Waiting for the first deploy from Jenkins."

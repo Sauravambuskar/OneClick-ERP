@@ -121,3 +121,31 @@ variable "log_retention_days" {
   type        = number
   default     = 30
 }
+
+variable "app_domain" {
+  description = <<-EOT
+    Domain name for the app, e.g. erp.example.com. When set, Caddy obtains a
+    Let's Encrypt certificate automatically and serves HTTPS. Point the domain's
+    A record at the app's static IP BEFORE running apply, or the first
+    certificate request will fail. Leave empty to serve plain HTTP on the IP.
+  EOT
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.app_domain == "" || can(regex("^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$", var.app_domain))
+    error_message = "app_domain must be a bare hostname such as erp.example.com — no scheme, port or trailing slash."
+  }
+}
+
+variable "acme_email" {
+  description = "Contact address Let's Encrypt uses for certificate expiry warnings. Defaults to notification_email."
+  type        = string
+  default     = ""
+}
+
+variable "backup_retention_days" {
+  description = "How many days of daily database backups to keep in Cloud Storage"
+  type        = number
+  default     = 30
+}

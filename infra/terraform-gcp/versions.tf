@@ -19,7 +19,7 @@ terraform {
   # GCS bucket for state — create this bucket first (see Step 3 in the guide),
   # then set the bucket name here and run terraform init.
   backend "gcs" {
-    bucket = "oneclick-erp-prod24-tfstate"   # <-- apna bucket naam yahan dalo
+    bucket = "oneclick-erp-prod24-tfstate" # <-- apna bucket naam yahan dalo
     prefix = "oneclick-erp/state"
   }
 }

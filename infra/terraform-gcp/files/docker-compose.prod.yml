@@ -26,8 +26,10 @@ services:
     environment:
       DATABASE_URL: postgres://erp:${DB_PASSWORD}@db:5432/erp
       PORT: "3000"
+    # Bound to loopback only: public traffic arrives through Caddy.
+    # deploy.sh health-checks this port directly, bypassing the TLS redirect.
     ports:
-      - "80:3000"
+      - "127.0.0.1:3000:3000"
     depends_on:
       db:
         condition: service_healthy
@@ -37,5 +39,29 @@ services:
         gcp-project: "${GCP_PROJECT}"
         gcp-log-name: "${LOG_NAME}-app"
 
+  # TLS terminator. With APP_DOMAIN set it obtains and renews a Let's Encrypt
+  # certificate automatically; without one it serves plain HTTP on port 80.
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      SITE_ADDRESS: "${SITE_ADDRESS:-:80}"
+      ACME_EMAIL: "${ACME_EMAIL:-}"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    logging:
+      driver: gcplogs
+      options:
+        gcp-project: "${GCP_PROJECT}"
+        gcp-log-name: "${LOG_NAME}-caddy"
+
 volumes:
   pgdata:
+  caddy_data:
+  caddy_config:

@@ -1,6 +1,14 @@
 locals {
   gar_host   = "${var.region}-docker.pkg.dev"
   image_repo = "${var.region}-docker.pkg.dev/${var.project_id}/${var.project_name}"
+
+  # With a domain, Caddy takes it as the site address and provisions TLS for it.
+  # Without one it listens on :80, so a bare-IP install keeps working.
+  site_address = var.app_domain != "" ? var.app_domain : ":80"
+  acme_email   = var.acme_email != "" ? var.acme_email : var.notification_email
+
+  # What the pipeline smoke test and the deploy emails point at.
+  app_url = var.app_domain != "" ? "https://${var.app_domain}" : "http://${google_compute_address.app.address}"
 }
 
 # ── Static IPs ─────────────────────────────────────────────────────────────────
@@ -69,7 +77,7 @@ resource "google_compute_instance" "jenkins" {
     image_repo           = local.image_repo
     app_vm               = "${var.project_name}-app"
     zone                 = var.zone
-    app_url              = "http://${google_compute_address.app.address}"
+    app_url              = local.app_url
     vertex_model_id      = var.vertex_model_id
     vertex_region        = var.vertex_region
     notification_email   = var.notification_email
@@ -121,12 +129,18 @@ resource "google_compute_instance" "app" {
   }
 
   metadata_startup_script = templatefile("${path.module}/templates/app-startup.sh.tftpl", {
-    compose_b64  = base64encode(file("${path.module}/files/docker-compose.prod.yml"))
-    deploy_b64   = base64encode(file("${path.module}/files/deploy.sh"))
-    project_id   = var.project_id
-    project_name = var.project_name
-    db_secret    = google_secret_manager_secret.db_password.secret_id
-    gar_region   = var.region
-    log_name     = "${var.project_name}-app"
+    compose_b64   = base64encode(file("${path.module}/files/docker-compose.prod.yml"))
+    deploy_b64    = base64encode(file("${path.module}/files/deploy.sh"))
+    caddyfile_b64 = base64encode(file("${path.module}/files/Caddyfile"))
+    backup_b64    = base64encode(file("${path.module}/files/db-backup.sh"))
+    restore_b64   = base64encode(file("${path.module}/files/db-restore.sh"))
+    project_id    = var.project_id
+    project_name  = var.project_name
+    db_secret     = google_secret_manager_secret.db_password.secret_id
+    gar_region    = var.region
+    log_name      = "${var.project_name}-app"
+    site_address  = local.site_address
+    acme_email    = local.acme_email
+    backup_bucket = google_storage_bucket.db_backups.name
   })
 }

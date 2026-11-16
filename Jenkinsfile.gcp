@@ -58,6 +58,40 @@ pipeline {
         stage('Unit Tests') {
           steps { dir('app') { sh '#!/bin/bash\nset -eo pipefail\nnpm test 2>&1 | tee "$REPORT_DIR/tests.txt"' } }
         }
+        stage('Integration Tests') {
+          steps {
+            dir('app') {
+              sh '''#!/bin/bash
+                set -eo pipefail
+
+                PG_NAME="erp-itest-${BUILD_NUMBER}"
+                PG_PASSWORD=$(head -c 32 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 24)
+
+                cleanup() { docker rm -f "$PG_NAME" >/dev/null 2>&1 || true; }
+                trap cleanup EXIT
+
+                docker run -d --name "$PG_NAME" \
+                  -e POSTGRES_DB=erp_test \
+                  -e POSTGRES_USER=erp \
+                  -e POSTGRES_PASSWORD="$PG_PASSWORD" \
+                  postgres:16-alpine >/dev/null
+
+                # Jenkins and the database are sibling containers on the default
+                # bridge network, so reach it by container IP, not localhost.
+                PG_HOST=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$PG_NAME")
+
+                for i in $(seq 1 30); do
+                  if docker exec "$PG_NAME" pg_isready -U erp -d erp_test >/dev/null 2>&1; then break; fi
+                  if [ "$i" -eq 30 ]; then echo "Postgres did not become ready in 60s"; exit 1; fi
+                  sleep 2
+                done
+
+                export INTEGRATION_DATABASE_URL="postgres://erp:$PG_PASSWORD@$PG_HOST:5432/erp_test"
+                npm run -s test:integration 2>&1 | tee "$REPORT_DIR/integration.txt"
+              '''
+            }
+          }
+        }
         stage('Migration Safety') {
           steps {
             dir('app') {
@@ -216,11 +250,30 @@ pipeline {
       steps {
         sh '''#!/bin/bash
           set -eo pipefail
+
+          # On an HTTPS install the first request can be slow: Caddy fetches the
+          # Let's Encrypt certificate on demand. Allow the full 60s window.
           for i in $(seq 1 12); do
-            BODY=$(curl -fsS --max-time 5 "$APP_URL/health" || true)
+            BODY=$(curl -fsS --max-time 15 "$APP_URL/health" || true)
             echo "$BODY"
             if echo "$BODY" | jq -e --arg v "$IMAGE_TAG" '.status == "ok" and .version == $v' >/dev/null 2>&1; then
-              echo "Smoke test PASSED: $APP_URL is serving $IMAGE_TAG"; exit 0
+              echo "Smoke test PASSED: $APP_URL is serving $IMAGE_TAG"
+
+              # With a domain configured, confirm TLS is real and plain HTTP
+              # is redirected rather than served.
+              case "$APP_URL" in
+                https://*)
+                  HOST=${APP_URL#https://}
+                  CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 10 "http://$HOST/health")
+                  if [ "$CODE" = "308" ] || [ "$CODE" = "301" ] || [ "$CODE" = "302" ]; then
+                    echo "HTTPS check PASSED: http://$HOST redirects ($CODE) to HTTPS"
+                  else
+                    echo "HTTPS check FAILED: http://$HOST returned $CODE instead of a redirect"
+                    exit 1
+                  fi
+                  ;;
+              esac
+              exit 0
             fi
             sleep 5
           done

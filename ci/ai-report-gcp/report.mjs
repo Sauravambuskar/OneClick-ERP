@@ -75,6 +75,7 @@ function plainReport(reports, reason) {
     'lint.txt':        'Lint',
     'typecheck.txt':   'Type check',
     'tests.txt':       'Unit tests',
+    'integration.txt': 'Integration tests (real PostgreSQL)',
     'migrations.txt':  'Migration safety',
     'sast.txt':        'SAST',
     'sca.txt':         'SCA (dependencies)',

@@ -3,14 +3,22 @@ resource "google_compute_network" "erp" {
   auto_create_subnetworks = true
 }
 
-# App VM: allow HTTP from the public internet
+# App VM: allow web traffic from the public internet.
+# Port 80 must stay open even on an HTTPS install: Let's Encrypt validates the
+# domain over HTTP, and Caddy redirects everything else to 443.
 resource "google_compute_firewall" "app_http" {
   name    = "${var.project_name}-app-http"
   network = google_compute_network.erp.name
 
   allow {
     protocol = "tcp"
-    ports    = ["80"]
+    ports    = ["80", "443"]
+  }
+
+  # HTTP/3 (QUIC), which Caddy serves alongside HTTPS.
+  allow {
+    protocol = "udp"
+    ports    = ["443"]
   }
 
   source_ranges = ["0.0.0.0/0"]

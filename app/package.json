@@ -12,7 +12,8 @@
     "dev": "node --watch src/server.js",
     "lint": "eslint .",
     "typecheck": "tsc -p jsconfig.json",
-    "test": "node --test",
+    "test": "node --test test/*.test.js",
+    "test:integration": "node --test \"test/integration/*.test.js\"",
     "migrations:check": "node scripts/check-migrations.js",
     "sast": "eslint --config eslint.security.config.js src",
     "sca": "npm audit --omit=dev --audit-level=high"

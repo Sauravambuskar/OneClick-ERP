@@ -15,9 +15,11 @@ set_image() {
   echo "APP_IMAGE=$1" >> .env
 }
 
+# Checks the app container directly on its loopback port. Going through Caddy
+# would follow the HTTPS redirect and test TLS rather than the new release.
 healthy() {
   for _ in $(seq 1 30); do
-    if curl -fsS --max-time 3 http://127.0.0.1/health >/dev/null 2>&1; then return 0; fi
+    if curl -fsS --max-time 3 http://127.0.0.1:3000/health >/dev/null 2>&1; then return 0; fi
     sleep 5
   done
   return 1
@@ -34,7 +36,7 @@ docker compose up -d --remove-orphans
 
 if healthy; then
   echo "DEPLOY OK: $NEW_IMAGE is healthy"
-  curl -fsS http://127.0.0.1/health; echo
+  curl -fsS http://127.0.0.1:3000/health; echo
   docker image prune -af --filter "until=168h" >/dev/null || true
   exit 0
 fi

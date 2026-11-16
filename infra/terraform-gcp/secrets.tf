@@ -13,27 +13,16 @@ resource "random_password" "approver" {
   special = false
 }
 
-# SSH key pair for Jenkins → App VM deploys.
-# Private key goes into Secret Manager; public key is installed on the app VM at boot.
 resource "tls_private_key" "deploy" {
   algorithm = "RSA"
   rsa_bits  = 4096
 }
 
-locals {
-  secrets = {
-    db_password          = random_password.db.result
-    jenkins_admin_pw     = random_password.admin.result
-    jenkins_approver_pw  = random_password.approver.result
-    github_token         = var.github_token
-    smtp_password        = var.smtp_password
-    deploy_ssh_key       = tls_private_key.deploy.private_key_pem
-  }
-}
-
 resource "google_secret_manager_secret" "db_password" {
   secret_id = "${var.project_name}-db-password"
-  replication { auto {} }
+  replication {
+    auto {}
+  }
 }
 resource "google_secret_manager_secret_version" "db_password" {
   secret      = google_secret_manager_secret.db_password.id
@@ -42,7 +31,9 @@ resource "google_secret_manager_secret_version" "db_password" {
 
 resource "google_secret_manager_secret" "jenkins_admin_pw" {
   secret_id = "${var.project_name}-jenkins-admin-pw"
-  replication { auto {} }
+  replication {
+    auto {}
+  }
 }
 resource "google_secret_manager_secret_version" "jenkins_admin_pw" {
   secret      = google_secret_manager_secret.jenkins_admin_pw.id
@@ -51,7 +42,9 @@ resource "google_secret_manager_secret_version" "jenkins_admin_pw" {
 
 resource "google_secret_manager_secret" "jenkins_approver_pw" {
   secret_id = "${var.project_name}-jenkins-approver-pw"
-  replication { auto {} }
+  replication {
+    auto {}
+  }
 }
 resource "google_secret_manager_secret_version" "jenkins_approver_pw" {
   secret      = google_secret_manager_secret.jenkins_approver_pw.id
@@ -60,7 +53,9 @@ resource "google_secret_manager_secret_version" "jenkins_approver_pw" {
 
 resource "google_secret_manager_secret" "github_token" {
   secret_id = "${var.project_name}-github-token"
-  replication { auto {} }
+  replication {
+    auto {}
+  }
 }
 resource "google_secret_manager_secret_version" "github_token" {
   secret      = google_secret_manager_secret.github_token.id
@@ -69,7 +64,9 @@ resource "google_secret_manager_secret_version" "github_token" {
 
 resource "google_secret_manager_secret" "smtp_password" {
   secret_id = "${var.project_name}-smtp-password"
-  replication { auto {} }
+  replication {
+    auto {}
+  }
 }
 resource "google_secret_manager_secret_version" "smtp_password" {
   secret      = google_secret_manager_secret.smtp_password.id
@@ -78,7 +75,9 @@ resource "google_secret_manager_secret_version" "smtp_password" {
 
 resource "google_secret_manager_secret" "deploy_ssh_key" {
   secret_id = "${var.project_name}-deploy-ssh-key"
-  replication { auto {} }
+  replication {
+    auto {}
+  }
 }
 resource "google_secret_manager_secret_version" "deploy_ssh_key" {
   secret      = google_secret_manager_secret.deploy_ssh_key.id

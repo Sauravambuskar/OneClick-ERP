@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OneClick ERP: DevOps ka poora safar (Hinglish guide)</title>
+<style>
+  :root {
+    --bg: #0f1420; --panel: #161d2e; --panel2: #1c2539; --line: #2a3550;
+    --text: #e6e9f0; --muted: #9aa5bd; --accent: #5b9dff; --green: #3ecf8e;
+    --yellow: #f5c451; --red: #ff6b6b; --purple: #b18cff; --orange: #ff9f5a;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); line-height: 1.65; }
+  a { color: var(--accent); }
+  code, pre { font-family: "Cascadia Code", Consolas, monospace; }
+  code { background: #0b0f18; padding: 1px 6px; border-radius: 4px; font-size: .9em; color: #ffd28a; }
+
+  /* layout */
+  .layout { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
+  nav.side { position: sticky; top: 0; height: 100vh; overflow-y: auto; background: #0b0f18; border-right: 1px solid var(--line); padding: 20px 14px; }
+  nav.side h2 { font-size: 15px; margin: 0 0 14px; color: var(--accent); }
+  nav.side a { display: block; padding: 7px 10px; border-radius: 6px; color: var(--muted); text-decoration: none; font-size: 14px; }
+  nav.side a:hover, nav.side a.active { background: var(--panel2); color: var(--text); }
+  main { padding: 0 40px 80px; max-width: 1100px; }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } nav.side { position: static; height: auto; } main { padding: 0 16px 60px; } }
+
+  /* hero */
+  .hero { padding: 48px 0 28px; border-bottom: 1px solid var(--line); margin-bottom: 10px; }
+  .hero h1 { font-size: 34px; margin: 0 0 8px; line-height: 1.2; }
+  .hero h1 span { background: linear-gradient(90deg, var(--accent), var(--purple)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .hero p { color: var(--muted); font-size: 17px; margin: 0; max-width: 760px; }
+  .pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+  .pill { background: var(--panel2); border: 1px solid var(--line); padding: 4px 12px; border-radius: 999px; font-size: 13px; }
+
+  section { padding-top: 36px; }
+  section > h2 { font-size: 26px; margin: 0 0 6px; }
+  section > .lead { color: var(--muted); margin: 0 0 20px; }
+  h3 { font-size: 19px; margin: 26px 0 10px; }
+
+  /* cards */
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; }
+  .card h4 { margin: 0 0 6px; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+  .card p { margin: 0; color: var(--muted); font-size: 14.5px; }
+  .card .eg { margin-top: 8px; font-size: 13.5px; color: var(--text); background: #0b0f18; border-radius: 8px; padding: 8px 10px; }
+  .icon { font-size: 20px; }
+
+  /* callouts */
+  .note { border-left: 4px solid var(--accent); background: #13203a; padding: 12px 16px; border-radius: 0 10px 10px 0; margin: 16px 0; }
+  .warn { border-left-color: var(--yellow); background: #2a2413; }
+  .bad { border-left-color: var(--red); background: #2c1619; }
+  .good { border-left-color: var(--green); background: #12291f; }
+  .note b:first-child { display: block; margin-bottom: 4px; }
+
+  /* flow diagram */
+  .flow { display: flex; flex-wrap: wrap; align-items: stretch; gap: 0; margin: 18px 0; }
+  .step { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; min-width: 120px; text-align: center; font-size: 13.5px; flex: 1; }
+  .step b { display: block; font-size: 14px; margin-bottom: 2px; }
+  .step small { color: var(--muted); }
+  .arrow { display: flex; align-items: center; padding: 0 6px; color: var(--accent); font-size: 20px; }
+  .step.gh { border-color: #6e7681; } .step.jk { border-color: var(--orange); } .step.aws { border-color: var(--yellow); }
+  .step.human { border-color: var(--purple); } .step.ok { border-color: var(--green); }
+
+  /* tables */
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; background: var(--panel); border-radius: 10px; overflow: hidden; font-size: 14.5px; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--panel2); color: var(--muted); font-weight: 600; }
+  tr:last-child td { border-bottom: 0; }
+  .tag { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+  .t-yes { background: #12291f; color: var(--green); } .t-no { background: #2c1619; color: var(--red); } .t-off { background: #2a2413; color: var(--yellow); }
+
+  /* timeline */
+  .timeline { position: relative; margin: 20px 0; padding-left: 28px; }
+  .timeline::before { content: ""; position: absolute; left: 9px; top: 4px; bottom: 4px; width: 2px; background: var(--line); }
+  .ev { position: relative; margin-bottom: 18px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; }
+  .ev::before { content: ""; position: absolute; left: -25px; top: 16px; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); }
+  .ev.fail::before { background: var(--red); } .ev.win::before { background: var(--green); } .ev.warnd::before { background: var(--yellow); }
+  .ev h4 { margin: 0 0 4px; font-size: 15.5px; }
+  .ev p { margin: 4px 0; color: var(--muted); font-size: 14.5px; }
+  .ev .why { color: var(--text); }
+
+  /* code blocks */
+  .code { position: relative; margin: 10px 0 14px; }
+  .code pre { background: #0b0f18; border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; overflow-x: auto; margin: 0; font-size: 13.5px; line-height: 1.55; color: #d6e2ff; }
+  .copy { position: absolute; top: 8px; right: 8px; background: var(--panel2); color: var(--muted); border: 1px solid var(--line); border-radius: 6px; padding: 3px 10px; font-size: 12px; cursor: pointer; }
+  .copy:hover { color: var(--text); }
+
+  details { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 16px; margin: 10px 0; }
+  details summary { cursor: pointer; font-weight: 600; }
+  details[open] summary { margin-bottom: 8px; }
+
+  ul.clean { padding-left: 20px; } ul.clean li { margin: 4px 0; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 700px) { .two { grid-template-columns: 1fr; } }
+
+  /* quiz */
+  .q { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; margin: 10px 0; }
+  .q p { margin: 0 0 8px; font-weight: 600; }
+  .q button { background: var(--panel2); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 6px 12px; margin: 4px 6px 4px 0; cursor: pointer; font-size: 14px; }
+  .q button.right { background: #12291f; border-color: var(--green); }
+  .q button.wrong { background: #2c1619; border-color: var(--red); }
+  .q .exp { display: none; color: var(--muted); margin-top: 6px; font-size: 14px; }
+  .q.done .exp { display: block; }
+
+  footer { margin-top: 50px; color: var(--muted); font-size: 13px; border-top: 1px solid var(--line); padding-top: 16px; }
+</style>
+</head>
+<body>
+<div class="layout">
+
+<nav class="side" id="nav">
+  <h2>📘 OneClick ERP Guide</h2>
+  <a href="#intro">0. Shuruaat</a>
+  <a href="#basics">1. DevOps basics</a>
+  <a href="#app">2. App kya hai</a>
+  <a href="#arch">3. Architecture</a>
+  <a href="#aws">4. AWS services</a>
+  <a href="#pipeline">5. Pipeline ke 6 phases</a>
+  <a href="#journey">6. Humne kya kiya (timeline)</a>
+  <a href="#problems">7. Problems aur fixes</a>
+  <a href="#status">8. Abhi ka status</a>
+  <a href="#todo">9. Aage kya karna hai</a>
+  <a href="#cmds">10. Commands cheat sheet</a>
+  <a href="#security">11. Security</a>
+  <a href="#cost">12. Cost aur cleanup</a>
+  <a href="#glossary">13. Glossary</a>
+  <a href="#quiz">14. Quick quiz</a>
+</nav>
+
+<main>
+
+<!-- ============================================================ HERO -->
+<div class="hero" id="intro">
+  <h1><span>OneClick ERP</span>: DevOps ka poora safar</h1>
+  <p>Is page mein ek hi jagah sab kuch hai: DevOps ke basic concepts, is project ka architecture, pipeline kaise chalti hai, humne step by step kya kiya, kahan atke aur kaise nikle. Sab simple Hinglish mein.</p>
+  <div class="pills">
+    <span class="pill">🟢 Node.js 22 + Express</span>
+    <span class="pill">🐘 PostgreSQL 16</span>
+    <span class="pill">🐳 Docker</span>
+    <span class="pill">🤵 Jenkins</span>
+    <span class="pill">🏗️ Terraform</span>
+    <span class="pill">☁️ AWS (EC2, ECR, SSM, SNS, CloudWatch, Bedrock)</span>
+    <span class="pill">🐙 GitHub + Webhook</span>
+  </div>
+</div>
+
+<div class="note good">
+  <b>Ek line mein poora project</b>
+  Aap GitHub par code push karte ho. Jenkins apne aap code check karta hai, Docker image banata hai, AWS par store karta hai, aapko email karta hai, aapke "Approve" ke baad EC2 server par deploy karta hai, aur check karta hai ki naya version sahi chal raha hai. Gadbad hui to purane version par wapas chala jata hai.
+</div>
+
+<!-- ============================================================ BASICS -->
+<section id="basics">
+  <h2>1. DevOps basics (pehle concept clear karo)</h2>
+  <p class="lead">Ye wo shabd hain jo is project mein baar baar aayenge. Har ek ka simple matlab aur ek desi example.</p>
+
+  <div class="grid">
+    <div class="card"><h4><span class="icon">🔁</span> DevOps</h4>
+      <p>Development (code likhna) aur Operations (server par chalana) ko jodne ka tareeka. Goal: code jaldi, safely aur baar baar production tak pahunche.</p>
+      <div class="eg">Jaise restaurant mein chef (dev) aur waiter (ops) ek system se kaam karein, taaki khana garam aur sahi table par pahunche.</div></div>
+
+    <div class="card"><h4><span class="icon">🧪</span> CI (Continuous Integration)</h4>
+      <p>Har code change par automatic checks chalna: lint, tests, security scan. Galti jaldi pakdi jaati hai.</p>
+      <div class="eg">Exam se pehle har chapter ka chhota test. Galti wahin pakdi gayi.</div></div>
+
+    <div class="card"><h4><span class="icon">🚚</span> CD (Continuous Delivery/Deployment)</h4>
+      <p>Checks pass hone ke baad code ko automatic server tak le jana. <b>Delivery</b> = deploy ke liye ready, insaan approve karta hai. <b>Deployment</b> = bina insaan ke deploy. Is project mein <b>Delivery</b> hai (approval gate hai).</p>
+      <div class="eg">Courier ready hai, bas aapke "haan" ka wait.</div></div>
+
+    <div class="card"><h4><span class="icon">🛤️</span> Pipeline</h4>
+      <p>Steps ki line jo har release se guzarti hai. Is project mein <code>Jenkinsfile</code> mein likhi hai.</p>
+      <div class="eg">Factory ki assembly line: har station par ek kaam.</div></div>
+
+    <div class="card"><h4><span class="icon">🚧</span> Gate (Quality Gate)</h4>
+      <p>Pipeline ka checkpoint. Fail hua to aage nahi badhega.</p>
+      <div class="eg">Airport security: bag mein gadbad, to flight nahi.</div></div>
+
+    <div class="card"><h4><span class="icon">🐳</span> Container aur Docker</h4>
+      <p>App + uski saari zaroorat (Node, libraries) ek dabbe mein pack. Har jagah same chalta hai. Docker ye dabba banata aur chalata hai.</p>
+      <div class="eg">Tiffin box: ghar ho ya office, khana wahi.</div></div>
+
+    <div class="card"><h4><span class="icon">📦</span> Image vs Container</h4>
+      <p><b>Image</b> = recipe/blueprint (static file). <b>Container</b> = us image se chalta hua program.</p>
+      <div class="eg">Image = cake ki recipe. Container = bana hua cake.</div></div>
+
+    <div class="card"><h4><span class="icon">🏪</span> Registry (ECR)</h4>
+      <p>Docker images ka godown. Hum ECR (AWS ka registry) use karte hain.</p>
+      <div class="eg">Jaise GitHub code ke liye hai, waise ECR images ke liye.</div></div>
+
+    <div class="card"><h4><span class="icon">🏗️</span> IaC (Infrastructure as Code)</h4>
+      <p>Server, network, permissions ko code mein likhna (Terraform). Ek command se poora setup ban jata hai, aur dobara bhi same banega.</p>
+      <div class="eg">Ghar ka naksha. Naksha hai to same ghar dobara ban sakta hai.</div></div>
+
+    <div class="card"><h4><span class="icon">🏷️</span> Immutable tag</h4>
+      <p>Har image ka unique naam, jaise <code>8-a86f45df</code> (build number + commit). Ek baar bana to badal nahi sakta.</p>
+      <div class="eg">Aadhaar number: ek insaan, ek number, kabhi duplicate nahi.</div></div>
+
+    <div class="card"><h4><span class="icon">⏪</span> Rollback</h4>
+      <p>Naya version kharab nikla to purane chalte hue version par wapas jana.</p>
+      <div class="eg">Phone update ke baad bug aaya, to purana version wapas.</div></div>
+
+    <div class="card"><h4><span class="icon">🪝</span> Webhook</h4>
+      <p>Ek system doosre ko event par khud call karta hai. GitHub push hote hi Jenkins ko batata hai "naya code aaya".</p>
+      <div class="eg">Doorbell: aapko baar baar darwaza check nahi karna padta.</div></div>
+  </div>
+
+  <h3>Security checks ke naam (ye interview mein bhi poochhte hain)</h3>
+  <table>
+    <tr><th>Naam</th><th>Matlab</th><th>Is project mein</th></tr>
+    <tr><td><b>Lint</b></td><td>Code ki galtiyan aur kharab style pakadna</td><td>ESLint</td></tr>
+    <tr><td><b>Type check</b></td><td>Galat type ka data (string ki jagah number) pakadna</td><td>TypeScript <code>checkJs</code></td></tr>
+    <tr><td><b>Unit tests</b></td><td>Chhote functions ko test karna</td><td>25 tests, <code>node --test</code></td></tr>
+    <tr><td><b>SAST</b></td><td>Static Application Security Testing: code padh kar security bugs dhundna</td><td>eslint-plugin-security</td></tr>
+    <tr><td><b>SCA</b></td><td>Software Composition Analysis: libraries (npm packages) mein known vulnerabilities</td><td><code>npm audit</code></td></tr>
+    <tr><td><b>Container scan</b></td><td>Docker image ke andar OS packages mein CVE dhundna</td><td>Amazon ECR scan</td></tr>
+    <tr><td><b>Migration safety</b></td><td>Database ko todne wale SQL (DROP, TRUNCATE) rokna</td><td><code>scripts/check-migrations.js</code></td></tr>
+  </table>
+</section>
+
+<!-- ============================================================ APP -->
+<section id="app">
+  <h2>2. App kya hai (OneClick ERP)</h2>
+  <p class="lead">ERP = Enterprise Resource Planning. Business ke products, customers, orders, stock ek jagah manage karna. Ye app jaan-boojh kar chhoti rakhi hai, kyunki asli focus pipeline hai.</p>
+  <div class="grid">
+    <div class="card"><h4>📊 Dashboard</h4><p>Products, customers, open orders, revenue, low-stock alert.</p></div>
+    <div class="card"><h4>📦 Products &amp; Stock</h4><p>Product banana, edit, delete, stock receive karna, reorder level.</p></div>
+    <div class="card"><h4>👥 Customers</h4><p>Customer add/delete.</p></div>
+    <div class="card"><h4>🧾 Sales Orders</h4><p>Order banate waqt ek hi transaction mein stock check, lock, minus. NEW → CONFIRMED → SHIPPED. Cancel par stock wapas.</p></div>
+  </div>
+  <h3>Code kahan hai</h3>
+  <table>
+    <tr><th>Folder / file</th><th>Kya hai</th></tr>
+    <tr><td><code>app/src/server.js</code></td><td>Express server start, migrations chalana</td></tr>
+    <tr><td><code>app/src/routes/api.js</code></td><td>Saari API routes (<code>/api/products</code>, <code>/health</code>...)</td></tr>
+    <tr><td><code>app/migrations/*.sql</code></td><td>Database tables (001) aur demo data (002)</td></tr>
+    <tr><td><code>app/public/</code></td><td>UI: <code>index.html</code>, <code>styles.css</code>, <code>app.js</code></td></tr>
+    <tr><td><code>app/test/</code></td><td>Tests (fake DB use karte hain, asli database nahi chahiye)</td></tr>
+    <tr><td><code>app/Dockerfile</code></td><td>Production image kaise banegi</td></tr>
+    <tr><td><code>Jenkinsfile</code></td><td>Poori pipeline</td></tr>
+    <tr><td><code>infra/terraform/</code></td><td>AWS ka saara infrastructure</td></tr>
+    <tr><td><code>jenkins/</code></td><td>Pre-configured Jenkins (plugins, users, job)</td></tr>
+    <tr><td><code>ci/ai-report/</code></td><td>Claude se release summary likhwane ka script</td></tr>
+    <tr><td><code>docker-compose.yml</code></td><td>Local par app + Postgres chalane ke liye</td></tr>
+  </table>
+</section>
+
+<!-- ============================================================ ARCH -->
+<section id="arch">
+  <h2>3. Architecture (poori picture)</h2>
+  <p class="lead">Code ek release mein kahan se kahan jata hai:</p>
+
+  <div class="flow">
+    <div class="step gh"><b>🐙 GitHub</b><small>git push</small></div>
+    <div class="arrow">→</div>
+    <div class="step gh"><b>🪝 Webhook</b><small>Jenkins ko signal</small></div>
+    <div class="arrow">→</div>
+    <div class="step jk"><b>🤵 Jenkins</b><small>quality gate</small></div>
+    <div class="arrow">→</div>
+    <div class="step jk"><b>🐳 Docker build</b><small>image</small></div>
+    <div class="arrow">→</div>
+    <div class="step aws"><b>🏪 ECR</b><small>store + scan</small></div>
+  </div>
+  <div class="flow">
+    <div class="step aws"><b>🤖 Bedrock</b><small>AI report</small></div>
+    <div class="arrow">→</div>
+    <div class="step aws"><b>📧 SNS</b><small>email</small></div>
+    <div class="arrow">→</div>
+    <div class="step human"><b>🙋 Approver</b><small>Approve &amp; Deploy</small></div>
+    <div class="arrow">→</div>
+    <div class="step aws"><b>🛰️ SSM</b><small>bina SSH deploy</small></div>
+    <div class="arrow">→</div>
+    <div class="step ok"><b>🖥️ EC2 App</b><small>ERP + Postgres</small></div>
+    <div class="arrow">→</div>
+    <div class="step aws"><b>📜 CloudWatch</b><small>logs</small></div>
+  </div>
+
+  <div class="two">
+    <div class="card"><h4>🤵 Server 1: Jenkins EC2</h4>
+      <p>Pipeline chalata hai. Docker, Node 22, AWS CLI already installed. Configuration-as-Code se boot hote hi job, users, credentials ready. Koi setup wizard nahi.</p></div>
+    <div class="card"><h4>🖥️ Server 2: App EC2</h4>
+      <p>Docker Compose se 2 containers: <b>ERP app</b> (port 80) aur <b>PostgreSQL</b> (sirf andar ke network par, bahar se band). Logs CloudWatch ko jaate hain.</p></div>
+  </div>
+
+  <div class="note">
+    <b>Ye design kyun?</b>
+    Do server rakhe taaki build ka kaam (bhari, Docker builds) production app ko slow na kare. EC2 + Docker Compose sabse simple production-jaisa setup hai: samajhna aur debug karna aasan. Bade production mein isko ECS Fargate + RDS par le ja sakte hain (guide ka section 12).
+  </div>
+</section>
+
+<!-- ============================================================ AWS -->
+<section id="aws">
+  <h2>4. AWS services: kya, kyun</h2>
+  <table>
+    <tr><th>Service</th><th>Kya karti hai</th><th>Is project mein kyun</th></tr>
+    <tr><td><b>EC2</b></td><td>Cloud mein virtual computer (server)</td><td>Jenkins aur App dono yahin chalte hain</td></tr>
+    <tr><td><b>Elastic IP</b></td><td>Fixed public IP</td><td>Server restart ho to bhi URL same rahe</td></tr>
+    <tr><td><b>ECR</b></td><td>Docker image registry</td><td>Har release ki image immutable tag ke saath store + vulnerability scan</td></tr>
+    <tr><td><b>SSM (Systems Manager)</b></td><td>Server par command chalana bina SSH ke</td><td>Jenkins app server ko deploy command bhejta hai. Port 22 kabhi khula nahi</td></tr>
+    <tr><td><b>SSM Parameter Store</b></td><td>Passwords/secrets ka safe locker</td><td>DB password, Jenkins passwords, GitHub token. Git mein kuch nahi</td></tr>
+    <tr><td><b>IAM</b></td><td>Kaun kya kar sakta hai (permissions)</td><td>Least privilege: Jenkins sirf apna ECR repo, apna SNS topic, apna app server</td></tr>
+    <tr><td><b>Security Group</b></td><td>Server ka firewall</td><td>Jenkins sirf aapke IP aur GitHub webhook IPs se khulta hai</td></tr>
+    <tr><td><b>SNS</b></td><td>Notification service</td><td>Report, approval request, deployed/failed email</td></tr>
+    <tr><td><b>CloudWatch Logs</b></td><td>Logs ek jagah</td><td>App logs, Postgres logs, deploy output: <code>/oneclick-erp/app</code></td></tr>
+    <tr><td><b>Bedrock</b></td><td>AWS par AI models (Claude)</td><td>Saare check logs padh kar 250 words ki release summary</td></tr>
+    <tr><td><b>VPC</b></td><td>Aapka private network cloud mein</td><td>Default VPC use kiya, taaki NAT gateway ka kharcha na ho</td></tr>
+  </table>
+</section>
+
+<!-- ============================================================ PIPELINE -->
+<section id="pipeline">
+  <h2>5. Pipeline ke 6 phases</h2>
+  <p class="lead">Ek "Build Now" (ya ek git push) par ye sab hota hai. Code <code>Jenkinsfile</code> mein hai.</p>
+
+  <table>
+    <tr><th>Phase</th><th>Kya hota hai</th><th>Release rokta hai?</th></tr>
+    <tr><td><b>1. Source</b></td><td>GitHub se checkout. Image tag banta hai: <code>&lt;build&gt;-&lt;commit&gt;</code></td><td>-</td></tr>
+    <tr><td><b>2. Code Quality Gate</b></td><td>Install → Lint → Type check → Unit tests → Migration safety → SAST → SCA → (SonarQube optional)</td><td><span class="tag t-yes">Haan</span></td></tr>
+    <tr><td><b>3. Build &amp; Push</b></td><td>Multi-stage Docker build (non-root user, npm hataya), ECR par push</td><td><span class="tag t-yes">Haan</span></td></tr>
+    <tr><td><b>4. Container Security Gate</b></td><td>ECR scan ka result padhna; CRITICAL/HIGH mila to fail</td><td><span class="tag t-off">Abhi BAND hai</span> (section 7 dekho)</td></tr>
+    <tr><td><b>5a. AI Report</b></td><td>Claude summary likhta hai, SNS email bhejta hai. Fail hua to rule-based report</td><td><span class="tag t-no">Nahi</span></td></tr>
+    <tr><td><b>5b. Manual Approval</b></td><td>Pipeline rukti hai (24 ghante tak). Sirf <code>approver</code> user "Approve &amp; Deploy" daba sakta hai</td><td><span class="tag t-yes">Haan (insaan)</span></td></tr>
+    <tr><td><b>6. Deploy to EC2</b></td><td>SSM se <code>/opt/erp/deploy.sh &lt;image&gt;</code>. Health check fail = auto rollback</td><td><span class="tag t-yes">Haan</span></td></tr>
+    <tr><td><b>6b. Smoke Test</b></td><td>Jenkins bahar se <code>/health</code> call karta hai: <code>status: ok</code> aur <b>naya version</b> hona chahiye</td><td><span class="tag t-yes">Haan</span></td></tr>
+  </table>
+
+  <details>
+    <summary>🔍 Deploy ke andar exactly kya hota hai? (deploy.sh)</summary>
+    <ul class="clean">
+      <li>App server ECR mein login karta hai aur nayi image pull karta hai.</li>
+      <li>Sirf app container restart hota hai. Postgres chalta rehta hai, data safe.</li>
+      <li>App start par naye SQL migrations apply karti hai (har ek apne transaction mein).</li>
+      <li><code>/health</code> ko 2.5 minute tak check karta hai.</li>
+      <li>Healthy nahi hua to <b>purani image wapas</b> chala deta hai aur build fail.</li>
+    </ul>
+  </details>
+  <details>
+    <summary>🔍 Approval gate kyun zaroori hai?</summary>
+    <p>Saare automatic checks pass hone ke baad bhi ek insaan (team lead) release dekh kar haan bolta hai. Jenkins record karta hai kisne approve kiya. Ye audit ke liye important hai. Webhook se automatic build hone par bhi production tak bina approval kuch nahi jata.</p>
+  </details>
+</section>
+
+<!-- ============================================================ JOURNEY -->
+<section id="journey">
+  <h2>6. Humne kya kiya (step by step timeline)</h2>
+  <p class="lead">Is session mein jo hua, usi order mein. Har step ke saath "kyun" bhi.</p>
+
+  <div class="timeline">
+    <div class="ev"><h4>1. Project samjha aur deployment guide padhi</h4>
+      <p class="why">Kyun: kya deploy ho raha hai, kis order mein, ye pata hona chahiye.</p>
+      <p><code>docs/DEPLOYMENT_GUIDE.md</code> ko Hinglish bullets mein samjha.</p></div>
+
+    <div class="ev warnd"><h4>2. Local par chalane ki koshish: port 8080 clash</h4>
+      <p class="why">Kyun local: AWS par bhejne se pehle machine par chala kar dekhna sasta aur fast hai.</p>
+      <p><code>docker compose up --build</code> chalaya, lekin <code>localhost:8080</code> par Jenkins ka login page khula. Matlab 8080 port pehle se kisi aur ke paas tha. Fix: compose mein port badalna (jaise <code>9090:3000</code>) ya doosri service band karna.</p></div>
+
+    <div class="ev"><h4>3. AWS CLI login + Terraform settings</h4>
+      <p class="why">Kyun: Terraform ko AWS account mein resources banane ki permission chahiye.</p>
+      <p><code>aws configure</code>, phir <code>terraform.tfvars</code> mein region, GitHub repo URL, aapka IP (<code>admin_cidr</code>), email.</p></div>
+
+    <div class="ev win"><h4>4. Provision: ek command se poora AWS setup</h4>
+      <p class="why">Kyun Terraform: haath se 30 resources banana galti wala aur slow hai. Code se ek baar likha, kabhi bhi dobara bana lo.</p>
+      <p>2 EC2 servers, Elastic IPs, ECR, IAM roles, security groups, SNS, CloudWatch log group, secrets. Dono servers SSM mein <b>Online</b> dikhe.</p></div>
+
+    <div class="ev fail"><h4>5. Build #1 se #4: Container Security Gate fail</h4>
+      <p>Phase 1-3 sab pass. Phase 4 par error: <code>ScanNotFoundException: Image scan does not exist</code>.</p>
+      <p>Repo par <code>scanOnPush=true</code> dobara set kiya, lekin fark nahi pada (Terraform mein ye pehle se <code>true</code> tha).</p></div>
+
+    <div class="ev fail"><h4>6. Build #5: retry wala script bhi fail</h4>
+      <p>Phase 4 mein 30 baar retry ka loop daala. Lekin wo pehle hi attempt par ruk gaya (exit 254). Wajah section 7 mein hai.</p></div>
+
+    <div class="ev warnd"><h4>7. Build #6: Phase 4 comment out kiya, deploy ho gaya</h4>
+      <p>Phase 4 ko <code>//</code> se band kiya. Pipeline aage badhi, approve hua, app <b>live</b> ho gayi aur "Deployed" email aaya.</p>
+      <p class="why">⚠️ Ye temporary jugaad hai. Abhi container scan bilkul nahi ho raha.</p></div>
+
+    <div class="ev"><h4>8. CloudWatch mein logs dekhna seekha</h4>
+      <p>Log group <code>/oneclick-erp/app</code>, Logs Insights queries, live tail.</p></div>
+
+    <div class="ev win"><h4>9. UI change: fonts bold (Build #7)</h4>
+      <p><code>app/public/styles.css</code> mein <code>font-weight</code> badhaya. Commit, push, build, approve.</p></div>
+
+    <div class="ev win"><h4>10. GitHub Webhook: push par automatic build</h4>
+      <p class="why">Kyun: har baar Jenkins kholke "Build Now" dabana manual kaam hai. Webhook se push hote hi pipeline khud chalti hai.</p>
+      <p>GitHub ke webhook IP ranges (<code>api.github.com/meta</code> ke <code>hooks</code>) <code>github_webhook_cidrs</code> mein daale. Pehli baar string diya to error aaya, kyunki Terraform ko <b>list</b> chahiye thi: <code>["a", "b"]</code>. Fix ke baad <code>terraform apply</code>, phir GitHub mein webhook add kiya. Build #8 push se khud chala.</p></div>
+
+    <div class="ev warnd"><h4>11. Build #8: AI report 403 error</h4>
+      <p>Email aaya, lekin likha tha <code>anthropic.claude-opus-5-5 is not available for this account</code>. Isliye rule-based report bheja gaya. Release ruka nahi (design hi aisa hai).</p></div>
+
+    <div class="ev win"><h4>12. Marquee header (Build #9)</h4>
+      <p>Header mein scrolling "🚀 OneClick ERP - Superfast Deployment 🚀". Push hua, webhook se build chala.</p></div>
+
+    <div class="ev warnd"><h4>13. Bedrock use-case form: account authorized nahi</h4>
+      <p>Bedrock ka "Model access" page AWS ne band kar diya hai. Anthropic models ke liye use-case form bharna padta hai, lekin aapke account par message aaya: "create a support case". Ye abhi pending hai.</p></div>
+  </div>
+</section>
+
+<!-- ============================================================ PROBLEMS -->
+<section id="problems">
+  <h2>7. Problems aur unke asli fix</h2>
+  <p class="lead">Har problem: kya dikha, asli wajah kya thi, sahi fix kya hai.</p>
+
+  <h3>Problem 1: ECR scan "does not exist" (sabse important)</h3>
+  <div class="note bad">
+    <b>Asli wajah (aapke AWS account mein check kiya)</b>
+    ECR ka <b>registry-level</b> scanning setting ye hai:
+    <div class="code"><pre>"scanType": "BASIC",
+"rules": []</pre></div>
+    <code>rules</code> khaali hai, matlab registry kisi bhi repo ki image scan nahi kar rahi. Registry-level setting repo ki <code>scanOnPush</code> setting se upar chalti hai. Isliye repo par <code>scanOnPush=true</code> hone ke baad bhi images #7, #8, #9 ka scan status <code>None</code> hai. Pipeline scan ka wait kar rahi thi jo kabhi shuru hi nahi hua.
+  </div>
+
+  <div class="note good">
+    <b>Sahi fix (industry standard): registry par scan-on-push rule lagao</b>
+    <div class="code"><button class="copy">Copy</button><pre>aws ecr put-registry-scanning-configuration `
+  --region us-east-1 `
+  --scan-type BASIC `
+  --rules '[{"scanFrequency":"SCAN_ON_PUSH","repositoryFilters":[{"filter":"*","filterType":"WILDCARD"}]}]'</pre></div>
+    Phir original Phase 4 wapas lao (wo first commit mein tha):
+    <div class="code"><button class="copy">Copy</button><pre>cd d:\oneclick-erp
+git show a8e9294:Jenkinsfile &gt; Jenkinsfile.original
+# Jenkinsfile.original se "Phase 4" wala stage copy karke Jenkinsfile mein wapas lagao
+# phir commit + push</pre></div>
+    Behtar ye hai ki ye rule Terraform mein bhi likha jaye (<code>aws_ecr_registry_scanning_configuration</code> resource), taaki agli baar <code>provision</code> karne par apne aap lag jaye.
+  </div>
+
+  <details>
+    <summary>Retry wala script kyun fail hua? (Build #5)</summary>
+    <ul class="clean">
+      <li>Jenkins ka <code>sh</code> step script ko <code>/bin/sh -xe</code> se chalata hai. <code>-e</code> ka matlab: koi bhi command fail hui to script turant band.</li>
+      <li><code>aws ecr describe-image-scan-findings</code> ne error diya (scan tha hi nahi), to script pehle hi attempt par band ho gaya. Log mein <code>SCAN_STATUS=</code> khaali dikha, phir exit 254.</li>
+      <li><code>for i in {1..30}</code> bash ka syntax hai, plain <code>sh</code> mein kaam nahi karta. Original Jenkinsfile har stage ke upar <code>#!/bin/bash</code> lagati thi, naye code mein wo nahi tha.</li>
+      <li>Aur sabse badi baat: retry se kuch nahi hota jab scan shuru hi nahi ho raha. Asli fix registry rule hai.</li>
+    </ul>
+  </details>
+
+  <h3>Problem 2: AI report 403 (Claude not available)</h3>
+  <div class="note warn">
+    <b>Wajah</b>
+    Pipeline default model <code>anthropic.claude-opus-5-5</code> use karti hai (<code>infra/terraform/variables.tf</code> mein <code>bedrock_model_id</code>). Aapke AWS account ko Anthropic models ki access abhi nahi mili, kyunki use-case approval pending hai aur aapka account khud form submit nahi kar sakta.
+  </div>
+  <ul class="clean">
+    <li><b>Step 1:</b> AWS Console → Support → Create case. Likho ki Bedrock par Anthropic Claude models ki access chahiye, use case: CI/CD release summaries. AWS reply karega.</li>
+    <li><b>Step 2:</b> Access milne ke baad koi rebuild nahi chahiye. Agle build mein AI summary apne aap aayegi.</li>
+    <li><b>Doosra model use karna ho:</b> <code>terraform.tfvars</code> mein <code>bedrock_model_id = "..."</code> set karke <code>terraform apply</code>. Dhyan rahe: ye Jenkins server ka user-data badalta hai, to <b>Jenkins server dobara banega</b> aur build history chali jayegi. App server aur data safe rehte hain.</li>
+    <li>Tab tak: rule-based report theek hai. Release nahi rukta.</li>
+  </ul>
+
+  <h3>Problem 3: Local par port 8080 busy</h3>
+  <p>Compose file app ko <code>8080</code> par map karti hai. Aapke PC par wahan pehle se kuch chal raha tha. Fix: <code>docker-compose.yml</code> mein <code>"9090:3000"</code> karke <code>http://localhost:9090</code>.</p>
+
+  <h3>Problem 4: <code>github_webhook_cidrs</code> type error</h3>
+  <p>Variable ka type <code>list(string)</code> hai. String <code>"a,b,c"</code> nahi chalega. Sahi: <code>["a", "b", "c"]</code>. Seekh: Terraform error mein "list of string required, but have string" dikhe to brackets lagao.</p>
+
+  <h3>Problem 5: <code>git add</code> "did not match any files"</h3>
+  <p>Aap <code>infra\terraform</code> folder mein the aur <code>Jenkinsfile</code> root par hai. Git path current folder se dekhta hai. Fix: <code>cd d:\oneclick-erp</code> karke commands chalao, ya poora path do (<code>infra/terraform/variables.tf</code>).</p>
+</section>
+
+<!-- ============================================================ STATUS -->
+<section id="status">
+  <h2>8. Abhi ka status</h2>
+  <table>
+    <tr><th>Cheez</th><th>Status</th></tr>
+    <tr><td>AWS infrastructure (Terraform)</td><td><span class="tag t-yes">Bana hua</span></td></tr>
+    <tr><td>Jenkins + App servers (SSM)</td><td><span class="tag t-yes">Online</span></td></tr>
+    <tr><td>App live</td><td><span class="tag t-yes">Haan</span> (App URL <code>terraform output app_url</code> se)</td></tr>
+    <tr><td>GitHub webhook (push par auto build)</td><td><span class="tag t-yes">Chal raha hai</span></td></tr>
+    <tr><td>Manual approval gate</td><td><span class="tag t-yes">Chal raha hai</span></td></tr>
+    <tr><td>Container Security Gate (Phase 4)</td><td><span class="tag t-off">Comment out (band)</span></td></tr>
+    <tr><td>ECR registry scan rule</td><td><span class="tag t-no">Missing</span> (rules khaali)</td></tr>
+    <tr><td>AI report (Claude on Bedrock)</td><td><span class="tag t-off">Rule-based fallback</span> (access pending)</td></tr>
+    <tr><td>Jenkins instance type</td><td><span class="tag t-off">t3.small</span> (guide mein t3.medium tha; Docker build ke time memory kam pad sakti hai)</td></tr>
+  </table>
+  <p>Git history:</p>
+  <div class="code"><pre>d30cf0b UI: Add superfast marquee animation to header
+a86f45d Test: Auto webhook deploy
+7a9d850 UI: Make all fonts extra bold for better readability
+6d9f53a Fix: Comment out Phase 4 container security gate
+4bd2250 Fix: Add retry logic to ECR scan waiter with timeout
+a8e9294 Initial commit</pre></div>
+</section>
+
+<!-- ============================================================ TODO -->
+<section id="todo">
+  <h2>9. Aage kya karna hai (priority order)</h2>
+  <div class="grid">
+    <div class="card"><h4>1️⃣ Container scan wapas chalu</h4><p>Registry scan rule lagao (section 7 ka command), original Phase 4 wapas lao, push karo. Bina iske vulnerable image production tak ja sakti hai.</p></div>
+    <div class="card"><h4>2️⃣ Registry rule Terraform mein</h4><p><code>aws_ecr_registry_scanning_configuration</code> resource add karo, taaki setup code mein rahe, haath se nahi.</p></div>
+    <div class="card"><h4>3️⃣ Bedrock access</h4><p>AWS support case kholo. Access milte hi AI summary apne aap aane lagegi.</p></div>
+    <div class="card"><h4>4️⃣ HTTPS (AWS par)</h4><p>AWS stack abhi HTTP par hai — ALB + ACM certificate chahiye. <b>GCP par ye ho chuka hai</b> (Caddy + Let's Encrypt), neeche dekho.</p></div>
+    <div class="card"><h4>5️⃣ Terraform state S3 mein</h4><p>State file mein generated passwords hote hain. S3 backend (encrypted) use karo, laptop par mat rakho. GCP side par ye already GCS backend mein hai.</p></div>
+    <div class="card"><h4>6️⃣ Jenkins size</h4><p>Builds slow/crash hon to <code>jenkins_instance_type</code> wapas <code>t3.medium</code>.</p></div>
+  </div>
+
+  <h3>GCP par ye ab ho chuka hai</h3>
+  <div class="grid">
+    <div class="card good"><h4>✅ HTTPS</h4><p><code>app_domain</code> set karo aur Caddy apne aap Let's Encrypt certificate le aata hai, HTTP ko HTTPS par redirect karta hai. Domain na ho to plain HTTP par chalta rehta hai. Pipeline ka smoke test certificate aur redirect dono check karta hai.</p></div>
+    <div class="card good"><h4>✅ Database backup</h4><p>Roz 02:00 UTC par <code>pg_dump</code> ek versioned Cloud Storage bucket mein jaata hai, <code>backup_retention_days</code> ke baad apne aap delete. Restore ke liye app VM par <code>sudo /opt/erp/db-restore.sh</code>.</p></div>
+    <div class="card good"><h4>✅ Integration tests</h4><p>Pipeline ek throwaway PostgreSQL uthaati hai aur wo cheezein test karti hai jo fake DB se prove nahi hoti — failed order poora rollback hota hai, aur do concurrent orders same product ko oversell nahi kar sakte.</p></div>
+  </div>
+
+  <div class="note warn">
+    <b>Jo abhi bhi nahi hai (honest list)</b>
+    Jenkins ek hi VM par hai (HA nahi), sab kuch ek hi zone mein hai (multi-region failover nahi),
+    PostgreSQL container mein hai managed service nahi, aur horizontal auto-scaling nahi hai.
+    Ye sab asli production ke liye chahiye hote hain — abhi nahi hain.
+  </div>
+</section>
+
+<!-- ============================================================ CMDS -->
+<section id="cmds">
+  <h2>10. Commands cheat sheet</h2>
+
+  <h3>Local par chalana</h3>
+  <div class="code"><button class="copy">Copy</button><pre>cd d:\oneclick-erp
+docker compose up --build        # app + Postgres
+docker compose down              # band
+docker compose down -v           # band + data saaf</pre></div>
+
+  <h3>Tests local par</h3>
+  <div class="code"><button class="copy">Copy</button><pre>cd d:\oneclick-erp\app
+npm ci
+npm run lint; npm run typecheck; npm test; npm run migrations:check; npm run sast; npm run sca</pre></div>
+
+  <h3>Code change → production</h3>
+  <div class="code"><button class="copy">Copy</button><pre>cd d:\oneclick-erp
+git add .
+git commit -m "Mera change"
+git push origin main
+# webhook se build apne aap -> email aayega -> approver se Approve & Deploy</pre></div>
+
+  <h3>Terraform</h3>
+  <div class="code"><button class="copy">Copy</button><pre>cd d:\oneclick-erp\infra\terraform
+terraform plan                                  # kya badlega, dekho
+terraform apply                                 # badlo
+terraform output                                # saare URLs
+terraform output -raw jenkins_admin_password    # password (kisi ko share mat karo)</pre></div>
+
+  <h3>AWS checks</h3>
+  <div class="code"><button class="copy">Copy</button><pre># servers SSM mein online hain?
+aws ssm describe-instance-information --region us-east-1 --query "InstanceInformationList[*].[InstanceId,PingStatus]" --output table
+
+# images aur unka scan status
+aws ecr describe-images --repository-name oneclick-erp --region us-east-1 --query "imageDetails[*].[imageTags[0],imageScanStatus.status]" --output table
+
+# registry scanning setting
+aws ecr get-registry-scanning-configuration --region us-east-1</pre></div>
+
+  <h3>Rollback</h3>
+  <div class="code"><button class="copy">Copy</button><pre># Recommended: bad commit ko revert karo, normal pipeline se jayega
+git revert &lt;bad-commit&gt;
+git push origin main
+
+# Emergency (gates skip): purani image direct deploy
+aws ssm send-command --instance-ids &lt;app_instance_id&gt; --document-name AWS-RunShellScript --parameters 'commands=["/opt/erp/deploy.sh &lt;ecr-url&gt;:&lt;purana-tag&gt;"]'</pre></div>
+
+  <h3>CloudWatch Logs Insights (errors)</h3>
+  <div class="code"><button class="copy">Copy</button><pre>fields @timestamp, msg, error
+| filter level = "error"
+| sort @timestamp desc</pre></div>
+</section>
+
+<!-- ============================================================ SECURITY -->
+<section id="security">
+  <h2>11. Security: is project mein kya achha hai</h2>
+  <ul class="clean">
+    <li><b>SSH nahi:</b> port 22 kabhi khula nahi. Sab kuch SSM se, aur har command log hoti hai.</li>
+    <li><b>Least privilege IAM:</b> Jenkins sirf ek ECR repo, ek SNS topic, ek server ko chhoo sakta hai.</li>
+    <li><b>Secrets Git mein nahi:</b> Terraform generate karta hai, SSM Parameter Store mein SecureString.</li>
+    <li><b>Jenkins sirf aapke IP se:</b> plus GitHub webhook ke IP ranges.</li>
+    <li><b>Postgres bahar se band:</b> sirf Docker ke private network par.</li>
+    <li><b>Container hardening:</b> non-root user, runtime image se npm/yarn hataye.</li>
+    <li><b>IMDSv2 + encrypted disks</b> dono servers par.</li>
+  </ul>
+  <div class="note warn">
+    <b>Dhyan do</b>
+    Jenkins admin password chat/screenshots mein dikh chuka hai. Agar wo kahin public jagah share hua ho, to password badal do. Aage se <code>terraform output -raw ...</code> ka output screenshot mein mat daalo. Aur jab tak Phase 4 band hai, image scan nahi ho raha. Ise jaldi chalu karo.
+  </div>
+</section>
+
+<!-- ============================================================ COST -->
+<section id="cost">
+  <h2>12. Cost aur cleanup</h2>
+  <table>
+    <tr><th>Item</th><th>Lagbhag / mahina (24x7)</th></tr>
+    <tr><td>Jenkins EC2</td><td>~$15 (t3.small) / ~$30 (t3.medium)</td></tr>
+    <tr><td>App EC2 t3.small</td><td>~$15</td></tr>
+    <tr><td>EBS disks</td><td>~$4</td></tr>
+    <tr><td>2 Elastic IPs</td><td>~$7</td></tr>
+    <tr><td>ECR, CloudWatch, SNS, SSM</td><td>~$1-3</td></tr>
+    <tr><td>Bedrock</td><td>kuch cents per build</td></tr>
+  </table>
+  <ul class="clean">
+    <li><b>Paisa bachao:</b> release na karna ho to Jenkins EC2 ko Stop karo (Elastic IP se URL same rahega).</li>
+    <li><b>Sab hatana:</b> <code>.\scripts\provision.ps1 destroy</code>. Isse database bhi delete hoga, pehle backup lo.</li>
+  </ul>
+</section>
+
+<!-- ============================================================ GLOSSARY -->
+<section id="glossary">
+  <h2>13. Glossary (A to Z)</h2>
+  <table>
+    <tr><td><b>AMI</b></td><td>EC2 server ka OS template (yahan Amazon Linux 2023)</td></tr>
+    <tr><td><b>CIDR</b></td><td>IP range likhne ka tareeka. <code>/32</code> = sirf ek IP</td></tr>
+    <tr><td><b>CVE</b></td><td>Publicly known security bug ka ID</td></tr>
+    <tr><td><b>Configuration-as-Code (JCasC)</b></td><td>Jenkins ki settings YAML file mein (<code>jenkins/jenkins.yaml</code>)</td></tr>
+    <tr><td><b>Docker Compose</b></td><td>Kai containers ko ek file se ek saath chalana</td></tr>
+    <tr><td><b>Health check</b></td><td><code>/health</code> endpoint jo batata hai app aur DB theek hain</td></tr>
+    <tr><td><b>Migration</b></td><td>Database ka versioned change (SQL file). Purani kabhi edit nahi karte</td></tr>
+    <tr><td><b>Multi-stage build</b></td><td>Docker build jismein build tools final image mein nahi jaate, image chhoti aur safe</td></tr>
+    <tr><td><b>Smoke test</b></td><td>Deploy ke baad chhota sa check ki app zinda hai</td></tr>
+    <tr><td><b>Terraform state</b></td><td>File jismein Terraform yaad rakhta hai ki usne kya banaya</td></tr>
+    <tr><td><b>User data</b></td><td>EC2 ke pehle boot par chalne wala script</td></tr>
+  </table>
+</section>
+
+<!-- ============================================================ QUIZ -->
+<section id="quiz">
+  <h2>14. Quick quiz (khud ko check karo)</h2>
+
+  <div class="q"><p>1. Build #1-#4 ka Phase 4 kyun fail ho raha tha?</p>
+    <button data-ok="0">Retry kam the</button><button data-ok="1">ECR registry ke scanning rules khaali the</button><button data-ok="0">Docker image galat thi</button>
+    <div class="exp">Registry-level <code>rules: []</code> ki wajah se scan kabhi shuru hi nahi hua. Retry se ye fix nahi hota.</div></div>
+
+  <div class="q"><p>2. Jenkins app server par deploy kaise karta hai?</p>
+    <button data-ok="0">SSH se</button><button data-ok="1">AWS SSM Run Command se</button><button data-ok="0">FTP se</button>
+    <div class="exp">SSM se. Port 22 khula hi nahi hai, aur har command log hoti hai.</div></div>
+
+  <div class="q"><p>3. AI report fail ho to kya hota hai?</p>
+    <button data-ok="0">Build fail</button><button data-ok="1">Rule-based report jata hai, release chalta rehta hai</button><button data-ok="0">Deploy skip</button>
+    <div class="exp">AI report kabhi release nahi rokta. Build #8 mein yahi hua.</div></div>
+
+  <div class="q"><p>4. Image tag <code>8-a86f45df</code> ka matlab?</p>
+    <button data-ok="1">Build number 8 + commit a86f45df</button><button data-ok="0">Version 8.0</button><button data-ok="0">8 din purani image</button>
+    <div class="exp">Har tag unique aur immutable hai, isliye pata rehta hai kaunsa code production mein hai.</div></div>
+
+  <div class="q"><p>5. Webhook ke liye Jenkins security group mein kya add kiya?</p>
+    <button data-ok="0">0.0.0.0/0</button><button data-ok="1">GitHub ke hooks IP ranges</button><button data-ok="0">Kuch nahi</button>
+    <div class="exp">Sirf GitHub ke webhook IPs ko allow kiya. Poori duniya ke liye Jenkins nahi khola.</div></div>
+</section>
+
+<footer>
+  OneClick ERP · Hinglish learning guide · Poori technical detail: <code>docs/DEPLOYMENT_GUIDE.md</code>
+</footer>
+
+</main>
+</div>
+
+<script>
+  // copy buttons
+  document.querySelectorAll('.copy').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const text = btn.parentElement.querySelector('pre').innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        btn.textContent = 'Copied ✓';
+        setTimeout(() => (btn.textContent = 'Copy'), 1500);
+      });
+    });
+  });
+
+  // quiz
+  document.querySelectorAll('.q').forEach(q => {
+    q.querySelectorAll('button').forEach(b => {
+      b.addEventListener('click', () => {
+        if (q.classList.contains('done')) return;
+        b.classList.add(b.dataset.ok === '1' ? 'right' : 'wrong');
+        q.querySelector('button[data-ok="1"]').classList.add('right');
+        q.classList.add('done');
+      });
+    });
+  });
+
+  // active nav link on scroll
+  const links = [...document.querySelectorAll('nav.side a')];
+  const targets = links.map(a => document.querySelector(a.getAttribute('href')));
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        links.forEach(l => l.classList.toggle('active', l.getAttribute('href') === '#' + e.target.id));
+      }
+    });
+  }, { rootMargin: '-30% 0px -60% 0px' });
+  targets.forEach(t => t && obs.observe(t));
+</script>
+</body>
+</html>
